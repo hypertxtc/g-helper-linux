@@ -157,5 +157,28 @@ class RescanTests(unittest.TestCase):
                 system.rescan_pci()
 
 
+class ArmouryAttributeTests(unittest.TestCase):
+    def test_every_logical_attribute_has_an_alias(self) -> None:
+        logical = (
+            asusd.ATTR_DGPU_DISABLE,
+            asusd.ATTR_GPU_MUX,
+            asusd.ATTR_PANEL_OVERDRIVE,
+            asusd.ATTR_PPT_APU,
+            asusd.ATTR_PPT_PLATFORM,
+            asusd.ATTR_PPT_FPPT,
+            asusd.ATTR_PENDING_REBOOT,
+            asusd.ATTR_BOOT_SOUND,
+        )
+        for name in logical:
+            with self.subTest(attribute=name):
+                self.assertIn(name, asusd.ATTRIBUTE_ALIASES)
+                self.assertEqual(asusd.ATTRIBUTE_ALIASES[name][0], name)
+
+    def test_boot_sound_uses_the_firmware_name(self) -> None:
+        self.assertEqual(
+            asusd.ATTRIBUTE_ALIASES[asusd.ATTR_BOOT_SOUND], ("boot_sound",)
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

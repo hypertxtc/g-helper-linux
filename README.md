@@ -30,6 +30,7 @@ System Control Interface on Windows.
 | Refresh rate + Auto | `kscreen-doctor` (KDE Plasma) | Auto switches 60/max on AC changes while running |
 | Keyboard lighting | `asusd` → `xyz.ljones.Aura` | Brightness, effect mode, colour and animation speed |
 | Battery charge limit / one-shot full charge | `asusd` | Restored by asusd after suspend/reboot |
+| Boot POST sound | `asusd` → firmware attributes | Settings → Startup toggle |
 | Battery readout | sysfs | Charge %, charge/discharge watts and rough time remaining in the window and tray tooltip; health, capacity and cycles in Settings |
 | Fn / ROG key mappings | evdev (passive read) | Map keys in Settings → Hotkeys; needs the bundled udev rule |
 | Opens next to the taskbar | KWin scripting (Plasma) | Uses the work area, so top/bottom/left/right panels all work |

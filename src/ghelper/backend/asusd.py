@@ -66,6 +66,7 @@ ATTR_PPT_APU = "ppt_apu_sppt"
 ATTR_PPT_PLATFORM = "ppt_platform_sppt"
 ATTR_PPT_FPPT = "ppt_pl3_fppt"
 ATTR_PENDING_REBOOT = "pending_reboot"
+ATTR_BOOT_SOUND = "boot_sound"
 
 ATTRIBUTE_ALIASES: dict[str, tuple[str, ...]] = {
     ATTR_DGPU_DISABLE: ("dgpu_disable", "gpu_disable"),
@@ -75,6 +76,7 @@ ATTRIBUTE_ALIASES: dict[str, tuple[str, ...]] = {
     ATTR_PPT_PLATFORM: ("ppt_platform_sppt", "ppt_pl2_sppt"),
     ATTR_PPT_FPPT: ("ppt_pl3_fppt",),
     ATTR_PENDING_REBOOT: ("pending_reboot",),
+    ATTR_BOOT_SOUND: ("boot_sound",),
 }
 
 # Never let one stuck asusd call block the backend worker forever.

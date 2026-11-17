@@ -312,7 +312,16 @@ class SettingsWindow(Adw.Window):
         body.append(section)
 
     def _build_window(self, body: Gtk.Box) -> None:
-        section = Section("gh-screen-symbolic", "Window")
+        section = Section("gh-power-symbolic", "Startup")
+        self._boot_sound_switch = ToggleRow(
+            "Boot sound",
+            subtitle="Play the POST beep when the laptop powers on.",
+        )
+        self._boot_sound_switch.switch.connect(
+            "notify::active", self._on_boot_sound_toggled
+        )
+        section.add(self._boot_sound_switch)
+
         self._hidden_switch = ToggleRow(
             "Start hidden in the tray",
             subtitle="Used by Run on Startup and by new launches.",
@@ -372,7 +381,11 @@ class SettingsWindow(Adw.Window):
             "/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference"
         )
         data["attrs"] = {}
-        for logical in (asusd_mod.ATTR_DGPU_DISABLE, asusd_mod.ATTR_GPU_MUX):
+        for logical in (
+            asusd_mod.ATTR_DGPU_DISABLE,
+            asusd_mod.ATTR_GPU_MUX,
+            asusd_mod.ATTR_BOOT_SOUND,
+        ):
             try:
                 data["attrs"][logical] = self.asusd.armoury(logical)
             except asusd_mod.AsusdError:
@@ -426,6 +439,14 @@ class SettingsWindow(Adw.Window):
                 and data.get("dgpu_present") is not False
                 and cleared
             )
+            boot = attrs.get(asusd_mod.ATTR_BOOT_SOUND)
+            if boot is not None:
+                self._boot_sound_switch.set_active(
+                    int(boot.get("CurrentValue", 0)) == 1
+                )
+                self._boot_sound_switch.set_sensitive(True)
+            else:
+                self._boot_sound_switch.set_sensitive(False)
             mux = attrs.get(asusd_mod.ATTR_GPU_MUX)
             if mux is not None:
                 self._mux_combo.set_selected(
@@ -558,6 +579,24 @@ class SettingsWindow(Adw.Window):
             autostart.set_enabled(True, hidden=hidden)
         except OSError as exc:
             self._failed(exc)
+
+    def _on_boot_sound_toggled(self, switch: Gtk.Switch, _param) -> None:
+        if self._loading:
+            return
+        enabled = switch.get_active()
+
+        def done(_result) -> None:
+            state = "enabled" if enabled else "disabled"
+            self.window.toast(f"Boot sound {state} for the next power-on")
+            self.refresh()
+
+        self.window.run(
+            lambda: self.asusd.set_armoury(
+                asusd_mod.ATTR_BOOT_SOUND, 1 if enabled else 0
+            ),
+            done=done,
+            error=self._failed,
+        )
 
     def _on_dgpu_toggled(self, switch: Gtk.Switch, _param) -> None:
         if self._loading:
