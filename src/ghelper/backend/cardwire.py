@@ -136,3 +136,42 @@ def launch_on(gpu_id: int | str, command: list[str]) -> None:
     if not command:
         raise CardwireError("No command given.")
     _run("launch", "--gpu", str(gpu_id), "--", *command)
+
+
+#: Launcher processes we started; reaped by :func:`reap`.
+_spawned: list[subprocess.Popen] = []
+
+
+def spawn(command: list[str], gpu: int | str | None = None) -> subprocess.Popen:
+    """Start a program with the dGPU available, without waiting for it.
+
+    Used by the per-app launcher: the child runs in its own session, so
+    quitting G-Helper does not take the application down with it.
+    """
+    if not available():
+        raise CardwireError("cardwire is not installed.")
+    if not command:
+        raise CardwireError("No command given.")
+    argv = ["cardwire", "launch"]
+    if gpu is not None:
+        argv += ["--gpu", str(gpu)]
+    argv += ["--", *command]
+    try:
+        proc = subprocess.Popen(
+            argv,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            env=dict(os.environ),
+        )
+    except OSError as exc:
+        raise CardwireError(str(exc)) from exc
+    _spawned.append(proc)
+    return proc
+
+
+def reap() -> None:
+    """Collect launcher processes that have finished, so they do not linger."""
+    global _spawned
+    _spawned = [proc for proc in _spawned if proc.poll() is None]

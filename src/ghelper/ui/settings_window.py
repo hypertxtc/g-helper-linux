@@ -4,13 +4,16 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 from .. import APP_VERSION
 from ..backend import asusd as asusd_mod
 from ..backend import autostart
 from ..backend import cardwire as cw
 from ..backend import hotkeys as hotkeys_mod
 from ..backend.system import machine_name
-from ..deps import Adw, Gtk
+from ..deps import Adw, Gio, GLib, Gtk, Pango
 from .format import battery_line
 from .theme import register_root
 from .widgets import Section, ToggleRow, ValueRow, dropdown, flat_button
@@ -35,6 +38,7 @@ class SettingsWindow(Adw.Window):
         )
         self.window = window
         self.asusd = window.asusd
+        self.settings = window.settings
         self._loading = False
         self._refresh_pending = False
         self.connect("destroy", self._on_destroy)
@@ -56,6 +60,7 @@ class SettingsWindow(Adw.Window):
         self._build_power(body)
         self._build_cpu(body)
         self._build_gpu(body)
+        self._build_gpu_apps(body)
         self._build_battery(body)
         self._build_hotkeys(body)
         self._build_window(body)
@@ -126,6 +131,118 @@ class SettingsWindow(Adw.Window):
         row.append(apply)
         section.add(row)
         body.append(section)
+
+    def _build_gpu_apps(self, body: Gtk.Box) -> None:
+        section = Section("gh-chip-symbolic", "dGPU Apps")
+        hint = Gtk.Label(
+            label="Games and renderers that need the discrete GPU can be "
+            "started from here without leaving Smart mode.",
+            xalign=0.0,
+            wrap=True,
+        )
+        hint.add_css_class("gh-live")
+        section.add(hint)
+
+        self._gpu_apps_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        section.add(self._gpu_apps_box)
+
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        add = flat_button("Add app\u2026", small=True)
+        add.connect("clicked", lambda *_: self.add_gpu_app())
+        if not cw.available():
+            add.set_sensitive(False)
+            missing = Gtk.Label(label="cardwire is not installed", xalign=0.0)
+            missing.add_css_class("gh-link-error")
+            row.append(missing)
+        row.append(add)
+        section.add(row)
+        body.append(section)
+        self._rebuild_gpu_apps()
+
+    def _rebuild_gpu_apps(self) -> None:
+        child = self._gpu_apps_box.get_first_child()
+        while child is not None:
+            following = child.get_next_sibling()
+            self._gpu_apps_box.remove(child)
+            child = following
+
+        apps = dict(self.settings.get("gpu_apps") or {})
+        if not apps:
+            empty = Gtk.Label(label="No apps added yet.", xalign=0.0)
+            empty.add_css_class("gh-live")
+            self._gpu_apps_box.append(empty)
+            return
+        for path, name in apps.items():
+            self._gpu_apps_box.append(self._gpu_app_row(path, name))
+
+    def _gpu_app_row(self, path: str, name: str) -> Gtk.Widget:
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        label = Gtk.Label(label=name, xalign=0.0)
+        label.set_hexpand(True)
+        label.set_ellipsize(Pango.EllipsizeMode.END)
+        label.set_tooltip_text(path)
+        launch = flat_button("Launch", small=True)
+        launch.connect("clicked", lambda *_: self.launch_gpu_app(path, name))
+        remove = Gtk.Button(label="\u00d7")
+        remove.add_css_class("gh-flat-icon")
+        remove.set_tooltip_text(f"Remove {name}")
+        remove.connect("clicked", lambda *_: self.remove_gpu_app(path))
+        row.append(label)
+        row.append(launch)
+        row.append(remove)
+        return row
+
+    def add_gpu_app(self) -> None:
+        dialog = Gtk.FileDialog(title="Add an application")
+        # Executables live in /usr/bin; starting there beats the cwd.
+        candidates = (Path("/usr/bin"), Path("/usr/local/bin"))
+        for folder in candidates:
+            if folder.is_dir():
+                dialog.set_initial_folder(Gio.File.new_for_path(str(folder)))
+                break
+        dialog.open(self, None, self._on_gpu_app_chosen)
+
+    def _on_gpu_app_chosen(self, dialog: Gtk.FileDialog, result) -> None:
+        try:
+            file = dialog.open_finish(result)
+        except GLib.Error:
+            return
+        path = file.get_path() if file is not None else None
+        if path:
+            self._add_gpu_app_path(path)
+
+    def _add_gpu_app_path(self, path: str) -> bool:
+        if not os.path.isfile(path) or not os.access(path, os.X_OK):
+            self.window.show_error(
+                ValueError(f"{Path(path).name} is not an executable file")
+            )
+            return False
+        apps = dict(self.settings.get("gpu_apps") or {})
+        apps[path] = Path(path).name
+        self.settings.set("gpu_apps", apps)
+        self._rebuild_gpu_apps()
+        self.window.toast(f"Added {Path(path).name}")
+        return True
+
+    def launch_gpu_app(self, path: str, name: str) -> None:
+        if not cw.daemon_alive():
+            self.window.show_error(
+                ValueError("cardwire daemon is not running; start cardwired")
+            )
+            return
+        try:
+            cw.spawn([path])
+        except cw.CardwireError as exc:
+            self.window.show_error(exc)
+            return
+        self.window.toast(f"Launching {name} with the dGPU")
+
+    def remove_gpu_app(self, path: str) -> None:
+        apps = dict(self.settings.get("gpu_apps") or {})
+        if apps.pop(path, None) is None:
+            return
+        self.settings.set("gpu_apps", apps)
+        self._rebuild_gpu_apps()
 
     def _build_battery(self, body: Gtk.Box) -> None:
         section = Section("gh-battery-symbolic", "Battery")

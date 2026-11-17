@@ -18,6 +18,7 @@ from .backend.asusd import (
     Asusd,
     AsusdError,
 )
+from .backend import cardwire as cw
 from .backend.settings import Settings
 from .backend.system import Monitor
 from .deps import Adw, Gio, GLib, Gtk
@@ -469,6 +470,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._sync_profile()
         if self._tick_count % 6 == 0:
             self.main_view.refresh()
+        cw.reap()
         return True
 
     def _on_close(self, _window: Adw.ApplicationWindow) -> bool:

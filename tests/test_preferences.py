@@ -128,6 +128,15 @@ class SettingsTests(unittest.TestCase):
             settings_mod.Settings().get("fn_actions"), {"202": "toggle_window"}
         )
 
+    def test_gpu_apps_round_trip(self) -> None:
+        store = settings_mod.Settings()
+        self.assertEqual(store.get("gpu_apps"), {})
+        store.set("gpu_apps", {"/usr/bin/steam": "steam", "/usr/bin/blender": "blender"})
+        self.assertEqual(
+            settings_mod.Settings().get("gpu_apps"),
+            {"/usr/bin/steam": "steam", "/usr/bin/blender": "blender"},
+        )
+
     def test_unknown_keys_are_not_persisted(self) -> None:
         store = settings_mod.Settings()
         store.set("window_width", 480)

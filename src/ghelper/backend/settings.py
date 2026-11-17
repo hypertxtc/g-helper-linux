@@ -26,6 +26,7 @@ DEFAULTS: dict[str, Any] = {
     "window_maximized": False,
     "fn_enabled": True,
     "fn_actions": {"148": "toggle_window"},
+    "gpu_apps": {},
     "settings_version": SETTINGS_VERSION,
 }
 

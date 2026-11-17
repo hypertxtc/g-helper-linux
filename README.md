@@ -24,6 +24,7 @@ System Control Interface on Windows.
 | CPU boost / energy preference | `asusd` | Per-profile EPP in Fans + Power |
 | PPT power limits | `asusd` → asus-armoury attributes | Vertical sliders with Applied/Not Applied status |
 | GPU modes (Eco / Standard / Ultimate / Optimized) | `cardwire` + asusd | Runtime blocking plus firmware MUX/ECO |
+| Per-app dGPU launch | `cardwire launch` | Start chosen apps with the dGPU available while Smart mode keeps it blocked elsewhere |
 | dGPU disable + GPU MUX | `asusd` → firmware attributes | Queued; requires a reboot |
 | Panel overdrive | `asusd` → firmware attributes | Tied to the 120Hz + OD button |
 | Refresh rate + Auto | `kscreen-doctor` (KDE Plasma) | Auto switches 60/max on AC changes while running |
@@ -310,7 +311,6 @@ validation and an RPM build in a Fedora container on every push.
 **Next milestone**
 
 - RGB (Aura), Anime Matrix and Slash lighting
-- Per-app GPU allow-list UI for cardwire's Smart mode
 - Non-KDE display adapters and window placement (GNOME/wlroots)
 
 **Later / out of scope for now**
