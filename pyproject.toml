@@ -17,6 +17,10 @@ dependencies = [
 [project.gui-scripts]
 ghelper-linux = "ghelper.__main__:main"
 
+[project.urls]
+Homepage = "https://github.com/hypertxtc/g-helper-linux"
+Issues = "https://github.com/hypertxtc/g-helper-linux/issues"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

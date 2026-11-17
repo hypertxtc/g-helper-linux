@@ -7,6 +7,9 @@
   <name>g-helper-linux</name>
   <summary>Performance, fan and battery control for ASUS laptops</summary>
 
+  <url type="homepage">https://github.com/hypertxtc/g-helper-linux</url>
+  <url type="bugtracker">https://github.com/hypertxtc/g-helper-linux/issues</url>
+
   <developer id="io.github.ghelperlinux">
     <name>g-helper-linux contributors</name>
   </developer>

@@ -35,15 +35,8 @@ jobs:
       - name: Unit tests
         run: PYTHONPATH=src python3 -m unittest discover -s tests -v
 
-      # The homepage URL is intentionally absent for now, so warnings pass and
-      # only real validation errors fail the job.
       - name: Validate AppStream metadata
-        run: |
-          output=$(appstreamcli validate --no-net data/*.metainfo.xml 2>&1) || true
-          printf '%s\n' "$output"
-          if printf '%s' "$output" | grep -q 'errors:'; then
-            exit 1
-          fi
+        run: appstreamcli validate --no-net data/*.metainfo.xml
 
       - name: Build RPM
         run: make rpm RPMTOP=/tmp/rpmbuild

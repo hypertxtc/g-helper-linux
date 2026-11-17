@@ -43,10 +43,10 @@ export PYTHONPATH="$PWD/src"
 %{__python3} -m unittest discover -s tests -v
 desktop-file-validate \
     %{buildroot}%{_datadir}/applications/io.github.ghelperlinux.GHelper.desktop
-# Exit code 3 means warnings (currently the missing homepage URL) only.
+# The metainfo has its homepage and bug tracker, so validation must pass
+# outright; the only remaining note is pedantic (uppercase component ID).
 appstreamcli validate --no-net \
-    %{buildroot}%{_datadir}/metainfo/io.github.ghelperlinux.GHelper.metainfo.xml \
-    || test $? -eq 3
+    %{buildroot}%{_datadir}/metainfo/io.github.ghelperlinux.GHelper.metainfo.xml
 
 %files
 %license LICENSE
