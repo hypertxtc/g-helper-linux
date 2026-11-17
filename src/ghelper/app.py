@@ -60,6 +60,9 @@ class Application(Adw.Application):
         self.add_action(show_action)
 
     def _on_shutdown(self, _application: Adw.Application) -> None:
+        from .backend import kwin
+
+        kwin.stop()
         if self.window is not None:
             self.window.stop_hotkeys()
             self.window.save_geometry()
@@ -93,6 +96,9 @@ class Application(Adw.Application):
     def show_window(self) -> None:
         if self.window is None:
             return
+        # Install the KWin watcher while the window is still unmapped: it then
+        # positions the window before the first frame is drawn.
+        self.window.install_placement()
         self.window.set_visible(True)
         self.window.present()
         if not self._state_applied:

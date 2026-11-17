@@ -191,19 +191,39 @@ class MainWindow(Adw.ApplicationWindow):
         )
         self._tray.set_tooltip(line)
 
-    def place_near_panel(self) -> None:
-        """Move the window beside the KDE panel once it is mapped."""
+    def _placement_args(self) -> tuple[str, str | None]:
+        application = self.get_application()
+        resource_class = application.get_application_id() if application else None
+        return self.get_title() or "G-Helper", resource_class
+
+    def install_placement(self) -> None:
+        """Ask KWin to position the window while it is first mapped."""
         if self.is_maximized():
             return
-        GLib.timeout_add(250, self._place_now)
+        from .backend import kwin
+
+        caption, resource_class = self._placement_args()
+        kwin.install(caption, resource_class)
+
+    def place_near_panel(self) -> None:
+        """Re-apply the placement after the window is on screen.
+
+        The KWin watcher already positions the window at map time; this second
+        pass covers a panel or screen-layout change that happened while the
+        window was hidden.
+        """
+        if self.is_maximized():
+            return
+        GLib.timeout_add(80, self._place_now)
 
     def _place_now(self) -> bool:
         if not self.get_visible():
             return False
         from .backend import kwin
 
-        placed = kwin.place_window(self.get_title() or "G-Helper")
-        log.debug("placed window next to the panel: %s", placed)
+        caption, resource_class = self._placement_args()
+        placed = kwin.place_window(caption, resource_class)
+        log.debug("re-applied window placement: %s", placed)
         return False
 
     # -- hotkeys ----------------------------------------------------------
