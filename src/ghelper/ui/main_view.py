@@ -588,7 +588,13 @@ class MainView(Gtk.Box):
                     cw.set_mode(cw_mode)
                 except cw.CardwireError as exc:
                     error = exc
-            changed = self._queue_firmware_for(cw_mode)
+            # Eco is a cardwire runtime mode: it must not touch the firmware
+            # dgpu_disable switch, which removes the GPU from the PCI bus and
+            # is only re-enumerated on reboot/rescan.  Standard still undoes a
+            # firmware ECO that the user enabled in Settings.
+            changed = False
+            if cw_mode == "hybrid":
+                changed = self._queue_firmware_for(cw_mode)
             if error is not None and not changed:
                 raise error
             if unavailable and not changed and cw_mode == "hybrid":

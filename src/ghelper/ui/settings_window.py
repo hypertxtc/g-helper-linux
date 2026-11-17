@@ -112,7 +112,7 @@ class SettingsWindow(Adw.Window):
         section = Section("gh-chip-symbolic", "Firmware GPU")
         self._dgpu_switch = ToggleRow(
             "Disable discrete GPU (ECO)",
-            subtitle="Applied after a reboot.",
+            subtitle="Removes the dGPU from the bus until the next boot.",
         )
         self._dgpu_switch.switch.connect("notify::active", self._on_dgpu_toggled)
         section.add(self._dgpu_switch)

@@ -23,7 +23,7 @@ System Control Interface on Windows.
 | Custom fan curves per profile | `asusd` → `xyz.ljones.FanCurves` | Drag-and-drop RPM charts, named presets, copy between profiles, JSON import/export; CPU, GPU and MID fans |
 | CPU boost / energy preference | `asusd` | Per-profile EPP in Fans + Power |
 | PPT power limits | `asusd` → asus-armoury attributes | Vertical sliders with Applied/Not Applied status |
-| GPU modes (Eco / Standard / Ultimate / Optimized) | `cardwire` + asusd | Runtime blocking plus firmware MUX/ECO |
+| GPU modes (Eco / Standard / Ultimate / Optimized) | `cardwire` + asusd | Eco/Standard switch at runtime with no reboot; Ultimate queues the firmware MUX |
 | Per-app dGPU launch | `cardwire launch` | Start chosen apps with the dGPU available while Smart mode keeps it blocked elsewhere |
 | dGPU disable + GPU MUX | `asusd` → firmware attributes | Queued; requires a reboot |
 | Panel overdrive | `asusd` → firmware attributes | Tied to the 120Hz + OD button |
@@ -292,11 +292,13 @@ src/ghelper/
   wrong the worst case is noise, throttling or a thermal shutdown; reset to
   BIOS defaults from the Fans page.
 - GPU MUX / dGPU-disable changes are queued in firmware and need a reboot.
-  Cardwire's modes are the runtime equivalents and need no reboot.
-- The dGPU leaves the PCI bus as soon as the firmware ECO switch is applied.
-  Turning ECO off again does not bring it back until the next boot, and
-  cardwire cannot change modes until then. G-Helper notices the missing
-  display controller and skips cardwire instead of showing an error.
+  Cardwire's runtime modes are the equivalents that need no reboot: **Eco**
+  only blocks the GPU at runtime, it never writes the firmware switch.
+- The Settings **Disable discrete GPU (ECO)** switch is the firmware one. It
+  removes the dGPU from the PCI bus immediately, and the kernel does not
+  re-enumerate it afterwards, so it stays absent until a reboot (or a manual
+  `echo 1 > /sys/bus/pci/rescan`). G-Helper notices the missing display
+  controller and skips cardwire instead of showing an error.
 - Battery health percentages come straight from the battery's own design
   capacity and may look low on replaced or aged cells. `cycle_count` is 0 on
   many ASUS batteries; that is a firmware limitation, not a bug.
