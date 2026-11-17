@@ -318,6 +318,11 @@ The backend runs every D-Bus call, cardwire invocation and kscreen query on a
 single ordered worker thread, so slow EC writes no longer block the window.
 Page refreshes are coalesced and all asusd calls carry a timeout.
 
+GPU decisions (firmware ECO, PCI presence, cardwire's own AC/battery switch)
+are pure functions in `src/ghelper/backend/gpu_policy.py` with unit tests, so
+the widget only performs the I/O. `make test` also fails when `APP_VERSION`,
+`pyproject.toml`, the RPM spec and the newest AppStream release disagree.
+
 CI (`.github/workflows/ci.yml`) runs ruff, the unit tests, AppStream
 validation and an RPM build in a Fedora container on every push.
 

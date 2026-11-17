@@ -12,6 +12,7 @@ from ..backend import aura as aura_mod
 from ..backend import autostart
 from ..backend import cardwire as cw
 from ..backend import display
+from ..backend import gpu_policy
 from ..backend.system import ac_online, dgpu_present
 from ..deps import Adw, Gdk, GLib, Gtk
 from .format import battery_line
@@ -498,23 +499,24 @@ class MainView(Gtk.Box):
             return self._attrs.get(logical)
 
     @staticmethod
-    def _gpu_absent() -> bool:
-        """True when the dGPU is not on the PCI bus (ECO until reboot)."""
-        return dgpu_present() is False
+    def _dgpu_present() -> bool | None:
+        """Whether the dGPU is on the PCI bus; None when it cannot be read."""
+        return dgpu_present()
+
+    def _gpu_absent(self) -> bool:
+        """True when the dGPU is not on the PCI bus (ECO until rescan/reboot)."""
+        return self._dgpu_present() is False
 
     def _apply_gpu_for_power(self, ac: bool) -> None:
-        if not (self._gpu_auto and cw.available()):
+        if gpu_policy.automation_should_skip(
+            gpu_auto=self._gpu_auto,
+            cw_available=cw.available(),
+            cw_auto=self._cw_auto,
+            firmware_disabled=self._firmware_gpu_disabled(),
+            dgpu_present=self._dgpu_present(),
+        ):
             return
-        # cardwire cannot touch a GPU that firmware has switched off, and the
-        # attribute can read 0 while the device is still absent until reboot.
-        if self._firmware_gpu_disabled() or self._gpu_absent():
-            return
-        # Defer unless we positively know cardwire's own switch is off.  The
-        # value is cached by _collect so this never runs a CLI call on the UI
-        # thread (cardwire can block for seconds while the dGPU is missing).
-        if self._cw_auto is not False:
-            return
-        target = "hybrid" if ac else "integrated"
+        target = gpu_policy.optimized_target(ac)
         self.window.run(
             lambda: cw.set_mode(target),
             done=lambda _r: self.refresh(),
@@ -538,25 +540,26 @@ class MainView(Gtk.Box):
         if mode == "optimized":
             self._gpu_auto = True
             self.settings.set("gpu_auto", True)
-            target = "hybrid" if (self._last_ac if self._last_ac is not None else ac_online()) else "integrated"
 
-            def work() -> str:
-                # Fresh read on the worker: the cached attributes may still be
+            def work() -> gpu_policy.OptimizedPlan:
+                # Fresh reads on the worker: the cached attributes may still be
                 # empty if the first refresh has not returned yet.
-                if self._fresh_firmware_gpu_disabled():
-                    return "eco"
-                if self._gpu_absent():
-                    return "absent"
-                cw.set_mode(target)
-                return "ok"
+                plan = gpu_policy.optimized_plan(
+                    firmware_disabled=self._fresh_firmware_gpu_disabled(),
+                    dgpu_present=self._dgpu_present(),
+                    ac=self._last_ac if self._last_ac is not None else ac_online(),
+                )
+                if plan.target is not None:
+                    cw.set_mode(plan.target)
+                return plan
 
-            def done(result: str) -> None:
-                if result == "eco":
+            def done(plan: gpu_policy.OptimizedPlan) -> None:
+                if plan.action == gpu_policy.OPTIMIZED_FIRMWARE_ECO:
                     self.window.toast(
                         "Optimized set; the dGPU stays off until ECO is undone"
                     )
                     self.refresh()
-                elif result == "absent":
+                elif plan.action == gpu_policy.OPTIMIZED_DGPU_ABSENT:
                     self.window.toast("Optimized set; the dGPU returns after a reboot")
                     self.refresh()
                 else:
@@ -577,40 +580,43 @@ class MainView(Gtk.Box):
     def _apply_gpu_mode(self, cw_mode: str, label: str) -> None:
         def work() -> str:
             error: Exception | None = None
-            unavailable = (
-                self._fresh_firmware_gpu_disabled() or self._gpu_absent()
-            )
+            firmware_disabled = self._fresh_firmware_gpu_disabled()
+            present = self._dgpu_present()
+            can_switch = gpu_policy.cardwire_can_switch(firmware_disabled, present)
             # An ECO-disabled GPU is not on the PCI bus; asking cardwire to
             # switch it only produces ENOENT.  The firmware writes below are
             # what actually change the state.
-            if cw.available() and not unavailable:
+            if cw.available() and can_switch:
                 try:
                     cw.set_mode(cw_mode)
                 except cw.CardwireError as exc:
                     error = exc
-            # Eco is a cardwire runtime mode: it must not touch the firmware
-            # dgpu_disable switch, which removes the GPU from the PCI bus and
-            # is only re-enumerated on reboot/rescan.  Standard still undoes a
-            # firmware ECO that the user enabled in Settings.
             changed = False
-            if cw_mode == "hybrid":
+            if gpu_policy.firmware_queue_needed(cw_mode):
                 changed = self._queue_firmware_for(cw_mode)
             if error is not None and not changed:
                 raise error
-            if unavailable and not changed and cw_mode == "hybrid":
-                return "reboot"
-            return "changed" if changed else "ok"
+            return gpu_policy.mode_outcome(
+                changed=changed,
+                firmware_disabled=firmware_disabled,
+                dgpu_present=present,
+                cw_mode=cw_mode,
+            )
 
         def done(result: str) -> None:
-            if result == "reboot":
+            if result == gpu_policy.MODE_REBOOT:
                 self.window.toast("The dGPU returns after a reboot")
                 self.refresh()
                 return
-            if result == "changed":
+            if result == gpu_policy.MODE_CHANGED:
                 self._after_gpu(f"{label} (firmware after reboot)")
             else:
                 self._after_gpu(label)
-            if result == "changed" and cw_mode == "hybrid" and not self._gpu_absent():
+            if (
+                result == gpu_policy.MODE_CHANGED
+                and cw_mode == "hybrid"
+                and not self._gpu_absent()
+            ):
                 # The dGPU returns asynchronously after ECO is undone.
                 GLib.timeout_add(1500, self._retry_hybrid)
 
@@ -651,22 +657,25 @@ class MainView(Gtk.Box):
         return changed
 
     def _ultimate_work(self) -> None:
-        was_disabled = self._fresh_firmware_gpu_disabled() or self._gpu_absent()
+        present = self._dgpu_present()
+        firmware_disabled = self._fresh_firmware_gpu_disabled()
+        can_switch = gpu_policy.cardwire_can_switch(firmware_disabled, present)
         error: Exception | None = None
-        if cw.available():
+        if cw.available() and can_switch:
             try:
                 cw.set_mode("hybrid")
             except cw.CardwireError as exc:
                 error = exc
-        if self._attrs.get(asusd_mod.ATTR_DGPU_DISABLE):
+        # Fresh reads: the cached attributes may not have arrived yet.
+        if self._fresh_attr(asusd_mod.ATTR_DGPU_DISABLE):
             self.asusd.set_armoury(asusd_mod.ATTR_DGPU_DISABLE, 0)
-        if self._attrs.get(asusd_mod.ATTR_GPU_MUX):
+        if self._fresh_attr(asusd_mod.ATTR_GPU_MUX):
             self.asusd.set_armoury(asusd_mod.ATTR_GPU_MUX, 0)
         try:
             self.asusd.apply_queued_gpu()
         except asusd_mod.AsusdError:
             pass
-        if error is not None and not was_disabled:
+        if error is not None:
             raise error
 
     def _confirm_ultimate(self) -> None:
@@ -696,16 +705,13 @@ class MainView(Gtk.Box):
         self.refresh()
 
     def _gpu_failed(self, exc: Exception) -> None:
-        if "No such file" in str(exc):
-            if self._firmware_gpu_disabled():
-                exc = RuntimeError(
-                    "The dGPU is disabled by the firmware ECO switch. "
-                    "Pick Standard to queue it back on, then reboot."
-                )
-            elif self._gpu_absent():
-                exc = RuntimeError(
-                    "The dGPU is still off after ECO; reboot to bring it back."
-                )
+        message = gpu_policy.cardwire_error_message(
+            str(exc),
+            firmware_disabled=self._firmware_gpu_disabled(),
+            dgpu_present=self._dgpu_present(),
+        )
+        if message is not None:
+            exc = RuntimeError(message)
         self.window.show_error(exc)
         self.refresh()
 
