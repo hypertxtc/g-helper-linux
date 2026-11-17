@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.2.0}
+Version:        %{?gh_version}%{!?gh_version:0.2.1}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,6 +64,14 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Tue Nov 17 2026 George <george@localhost> - 0.2.1-1
+- Smart GPU mode: keep the dGPU blocked except for launched apps
+- Main window names Smart and Manual instead of claiming Standard
+- AC/battery automation leaves Smart and Manual modes alone
+- GPU decisions are unit tested; no UI stalls or raw cardwire errors
+  when the dGPU is absent
+- Installing no longer rewrites the tracked icon
+
 * Tue Nov 17 2026 George <george@localhost> - 0.2.0-1
 - Silent / Balanced / Turbo profiles with editable fan curves
 - Fan-curve presets, copy between profiles, JSON import/export

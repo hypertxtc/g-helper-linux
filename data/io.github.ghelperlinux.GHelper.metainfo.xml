@@ -59,6 +59,17 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.2.1" date="2026-11-17">
+      <description>
+        <p>Smart GPU mode and per-app dGPU access.</p>
+        <ul>
+          <li>Settings → dGPU Apps can keep the discrete GPU blocked, allowing only apps launched from that list to use it.</li>
+          <li>The GPU row names Smart and Manual modes instead of claiming Standard, with no preset highlighted for them.</li>
+          <li>AC/battery automation no longer overrides Smart or Manual.</li>
+          <li>GPU mode changes no longer stall the window or show raw cardwire errors when the dGPU is absent.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-11-17">
       <description>
         <p>First packaged release.</p>
