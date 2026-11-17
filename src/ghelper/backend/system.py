@@ -7,6 +7,9 @@ from __future__ import annotations
 import logging
 import os
 import re
+import shutil
+import subprocess
+from pathlib import Path
 from typing import Any
 
 log = logging.getLogger(__name__)
@@ -165,6 +168,44 @@ def dgpu_present() -> bool | None:
     if not count:
         return None
     return count > 1
+
+
+RESCAN_HELPER = "/usr/libexec/ghelper-linux/rescan-pci"
+
+
+def rescan_pci(timeout: float = 180.0) -> None:
+    """Re-enumerate the PCI bus through pkexec.
+
+    Used after the firmware ECO switch is turned off: the slot is powered
+    again, but the kernel does not enumerate the dGPU by itself.  Raises
+    ``OSError`` with a message suitable for the UI when authentication is
+    cancelled or the helper fails.
+    """
+    pkexec = shutil.which("pkexec")
+    if pkexec is None:
+        raise OSError(
+            "pkexec is not installed; run \"echo 1 | sudo tee /sys/bus/pci/rescan\""
+        )
+    helper = Path(RESCAN_HELPER)
+    if helper.exists():
+        argv = [pkexec, str(helper)]
+    else:
+        # Running from a checkout: use polkit's generic exec action.
+        argv = [pkexec, "sh", "-c", "echo 1 > /sys/bus/pci/rescan"]
+    try:
+        proc = subprocess.run(
+            argv, capture_output=True, text=True, timeout=timeout, check=False
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise OSError("Authentication timed out") from exc
+    except OSError as exc:
+        raise OSError(str(exc)) from exc
+    if proc.returncode == 0:
+        return
+    if proc.returncode in (126, 127):
+        raise OSError("Authentication cancelled")
+    message = (proc.stderr or proc.stdout or "").strip().splitlines()
+    raise OSError(message[-1] if message else "PCI rescan failed")
 
 
 def _ac_online() -> bool | None:

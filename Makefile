@@ -8,8 +8,10 @@ VERSION := $(shell python3 -c "import sys; sys.path.insert(0, 'src'); import ghe
 RPMTOP ?= $(HOME)/rpmbuild
 LIBDIR := $(DESTDIR)$(PREFIX)/lib/ghelper-linux
 BINDIR := $(DESTDIR)$(PREFIX)/bin
+LIBEXECDIR := $(DESTDIR)$(PREFIX)/libexec/ghelper-linux
 SHAREDIR := $(DESTDIR)$(PREFIX)/share
 METAINFODIR := $(SHAREDIR)/metainfo
+POLICYDIR := $(SHAREDIR)/polkit-1/actions
 UNITDIR := $(DESTDIR)$(PREFIX)/lib/systemd/user
 UDEVDIR := $(DESTDIR)$(PREFIX)/lib/udev/rules.d
 
@@ -52,6 +54,10 @@ install: $(APPID).png
 		$(UNITDIR)/ghelper-automation.service
 	install -Dm644 data/60-ghelper-hotkeys.rules \
 		$(UDEVDIR)/60-ghelper-hotkeys.rules
+	install -Dm755 data/ghelper-rescan-pci \
+		$(LIBEXECDIR)/rescan-pci
+	install -Dm644 data/$(APPID).policy \
+		$(POLICYDIR)/$(APPID).policy
 	if [ -z "$(DESTDIR)" ]; then \
 		udevadm control --reload-rules 2>/dev/null || true; \
 		udevadm trigger --subsystem-match=input 2>/dev/null || true; \
@@ -68,6 +74,8 @@ uninstall:
 	rm -f $(SHAREDIR)/icons/hicolor/128x128/apps/$(APPID).png
 	rm -f $(UNITDIR)/ghelper-automation.service
 	rm -f $(UDEVDIR)/60-ghelper-hotkeys.rules
+	rm -f $(LIBEXECDIR)/rescan-pci
+	rm -f $(POLICYDIR)/$(APPID).policy
 
 rpm:
 	mkdir -p $(RPMTOP)/SOURCES

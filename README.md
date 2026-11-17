@@ -25,7 +25,7 @@ System Control Interface on Windows.
 | PPT power limits | `asusd` → asus-armoury attributes | Vertical sliders with Applied/Not Applied status |
 | GPU modes (Eco / Standard / Ultimate / Optimized) | `cardwire` + asusd | Eco/Standard switch at runtime with no reboot; Ultimate queues the firmware MUX |
 | Per-app dGPU launch | `cardwire launch` | Start chosen apps with the dGPU available while Smart mode keeps it blocked elsewhere |
-| dGPU disable + GPU MUX | `asusd` → firmware attributes | Queued; requires a reboot |
+| dGPU disable + GPU MUX | `asusd` → firmware attributes | Queued; requires a reboot. Settings → Rescan dGPU re-enumerates PCI after ECO |
 | Panel overdrive | `asusd` → firmware attributes | Tied to the 120Hz + OD button |
 | Refresh rate + Auto | `kscreen-doctor` (KDE Plasma) | Auto switches 60/max on AC changes while running |
 | Keyboard lighting | `asusd` → `xyz.ljones.Aura` | Brightness, effect mode, colour and animation speed |
@@ -296,8 +296,9 @@ src/ghelper/
   only blocks the GPU at runtime, it never writes the firmware switch.
 - The Settings **Disable discrete GPU (ECO)** switch is the firmware one. It
   removes the dGPU from the PCI bus immediately, and the kernel does not
-  re-enumerate it afterwards, so it stays absent until a reboot (or a manual
-  `echo 1 > /sys/bus/pci/rescan`). G-Helper notices the missing display
+  re-enumerate it afterwards. **Rescan dGPU** in the same section runs the PCI
+  rescan through pkexec (one password prompt) so the card comes back without a
+  reboot; rebooting also works. G-Helper notices the missing display
   controller and skips cardwire instead of showing an error.
 - Battery health percentages come straight from the battery's own design
   capacity and may look low on replaced or aged cells. `cycle_count` is 0 on

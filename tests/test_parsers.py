@@ -7,6 +7,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -110,6 +111,50 @@ class DisplayControllerTests(unittest.TestCase):
         self.assertEqual(
             system.count_display_controllers(["0x030200", "0x038000"]), 2
         )
+
+
+class RescanTests(unittest.TestCase):
+    def _run(self, *, helper: bool, returncode: int = 0, stderr: str = ""):
+        with mock.patch.object(
+            system.shutil, "which", return_value="/usr/bin/pkexec"
+        ), mock.patch.object(system.Path, "exists", return_value=helper), mock.patch.object(
+            system.subprocess, "run"
+        ) as run:
+            run.return_value = mock.Mock(returncode=returncode, stdout="", stderr=stderr)
+            try:
+                system.rescan_pci()
+                result = None
+            except OSError as exc:
+                result = str(exc)
+        return run, result
+
+    def test_uses_installed_helper(self) -> None:
+        run, result = self._run(helper=True)
+        self.assertIsNone(result)
+        self.assertEqual(
+            run.call_args.args[0], ["/usr/bin/pkexec", system.RESCAN_HELPER]
+        )
+
+    def test_falls_back_when_helper_is_missing(self) -> None:
+        run, result = self._run(helper=False)
+        self.assertIsNone(result)
+        self.assertEqual(
+            run.call_args.args[0],
+            ["/usr/bin/pkexec", "sh", "-c", "echo 1 > /sys/bus/pci/rescan"],
+        )
+
+    def test_cancelled_authentication(self) -> None:
+        _run, result = self._run(helper=True, returncode=126)
+        self.assertEqual(result, "Authentication cancelled")
+
+    def test_failure_reports_last_line(self) -> None:
+        _run, result = self._run(helper=True, returncode=1, stderr="line one\nboom\n")
+        self.assertEqual(result, "boom")
+
+    def test_missing_pkexec(self) -> None:
+        with mock.patch.object(system.shutil, "which", return_value=None):
+            with self.assertRaises(OSError):
+                system.rescan_pci()
 
 
 if __name__ == "__main__":

@@ -98,5 +98,12 @@ class BatterySwitchTests(unittest.TestCase):
             self.assertIsNone(cardwire.battery_auto_switch())
 
 
+class RefreshTests(unittest.TestCase):
+    def test_refresh_asks_the_daemon(self) -> None:
+        with mock.patch.object(cardwire, "_run") as run:
+            cardwire.refresh_gpus()
+        run.assert_called_once_with("debug", "refresh-gpu", timeout=10)
+
+
 if __name__ == "__main__":
     unittest.main()

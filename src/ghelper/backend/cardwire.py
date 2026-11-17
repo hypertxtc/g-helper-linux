@@ -120,6 +120,11 @@ def list_gpus() -> list[dict[str, Any]]:
     return parse_gpus(_run("list", "--json"))
 
 
+def refresh_gpus() -> None:
+    """Ask the daemon to re-detect GPUs after a PCI rescan."""
+    _run("debug", "refresh-gpu", timeout=10)
+
+
 def gpu_power(gpu_id: int | str) -> str | None:
     try:
         out = _run("gpu", "--power", str(gpu_id), timeout=4).strip()

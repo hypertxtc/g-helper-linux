@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>g-helper-linux</vendor>
+
+  <action id="io.github.ghelperlinux.ghelper.rescan-pci">
+    <description>Rescan the PCI bus for the discrete GPU</description>
+    <message>Authentication is required to rescan the PCI bus</message>
+    <defaults>
+      <allow_anonymous>no</allow_anonymous>
+      <allow_active>auth_admin_keep</allow_active>
+      <allow_inactive>auth_admin</allow_inactive>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/ghelper-linux/rescan-pci</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
+</policyconfig>

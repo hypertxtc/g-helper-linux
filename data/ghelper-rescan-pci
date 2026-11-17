@@ -1,0 +1,8 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Re-enumerate the PCI bus so a discrete GPU that the firmware ECO switch
+# powered off reappears without a reboot.  pkexec runs this as root through
+# io.github.ghelperlinux.ghelper.rescan-pci; it does nothing else.
+set -eu
+echo 1 > /sys/bus/pci/rescan

@@ -35,6 +35,10 @@ install -Dm644 "$HERE/data/ghelper-automation.service" \
     "$DESTDIR$PREFIX/lib/systemd/user/ghelper-automation.service"
 install -Dm644 "$HERE/data/60-ghelper-hotkeys.rules" \
     "$DESTDIR$PREFIX/lib/udev/rules.d/60-ghelper-hotkeys.rules"
+install -Dm755 "$HERE/data/ghelper-rescan-pci" \
+    "$DESTDIR$PREFIX/libexec/ghelper-linux/rescan-pci"
+install -Dm644 "$HERE/data/$APPID.policy" \
+    "$DESTDIR$PREFIX/share/polkit-1/actions/$APPID.policy"
 
 if [ -z "$DESTDIR" ]; then
     udevadm control --reload-rules 2>/dev/null || true

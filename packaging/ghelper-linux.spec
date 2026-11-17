@@ -60,6 +60,8 @@ appstreamcli validate --no-net \
 %{_datadir}/icons/hicolor/128x128/apps/io.github.ghelperlinux.GHelper.png
 %{_prefix}/lib/systemd/user/ghelper-automation.service
 %{_udevrulesdir}/60-ghelper-hotkeys.rules
+%{_libexecdir}/ghelper-linux/rescan-pci
+%{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
 * Tue Nov 17 2026 George <george@localhost> - 0.2.0-1

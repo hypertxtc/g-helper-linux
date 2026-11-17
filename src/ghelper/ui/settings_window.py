@@ -12,7 +12,7 @@ from ..backend import asusd as asusd_mod
 from ..backend import autostart
 from ..backend import cardwire as cw
 from ..backend import hotkeys as hotkeys_mod
-from ..backend.system import machine_name
+from ..backend.system import dgpu_present, machine_name, rescan_pci
 from ..deps import Adw, Gio, GLib, Gtk, Pango
 from .format import battery_line
 from .theme import register_root
@@ -127,8 +127,16 @@ class SettingsWindow(Adw.Window):
         section.add(self._pending_value)
         apply = flat_button("Apply queued changes", small=True)
         apply.connect("clicked", lambda *_: self._apply_queued())
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        rescan = flat_button("Rescan dGPU", small=True)
+        rescan.set_tooltip_text(
+            "Re-enumerate the PCI bus after the firmware ECO switch is turned "
+            "off, so the dGPU comes back without a reboot."
+        )
+        rescan.connect("clicked", lambda *_: self.rescan_dgpu())
+        self._rescan_button = rescan
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         row.append(apply)
+        row.append(rescan)
         section.add(row)
         body.append(section)
 
@@ -349,6 +357,7 @@ class SettingsWindow(Adw.Window):
         data["cardwire"] = cw.available()
         data["hotkeys"] = hotkeys_mod.probe()
         data["battery"] = self.window.monitor.battery()
+        data["dgpu_present"] = dgpu_present()
         return data
 
     def _apply(self, data: dict) -> None:
@@ -372,6 +381,12 @@ class SettingsWindow(Adw.Window):
                 self._dgpu_switch.set_sensitive(True)
             else:
                 self._dgpu_switch.set_sensitive(False)
+            # Only useful when the GPU is missing and firmware is no longer
+            # holding it off.
+            cleared = dgpu is None or int(dgpu.get("CurrentValue", 0)) == 0
+            self._rescan_button.set_sensitive(
+                data.get("dgpu_present") is False and cleared
+            )
             mux = attrs.get(asusd_mod.ATTR_GPU_MUX)
             if mux is not None:
                 self._mux_combo.set_selected(
@@ -517,7 +532,34 @@ class SettingsWindow(Adw.Window):
             except asusd_mod.AsusdError:
                 pass
 
-        self.window.run(work, done=lambda _r: self.refresh(), error=self._failed)
+        def done(_result) -> None:
+            self.refresh()
+            if value == 0:
+                self.window.toast("ECO off: use Rescan dGPU to bring it back now")
+
+        self.window.run(work, done=done, error=self._failed)
+
+    def rescan_dgpu(self) -> None:
+        self._rescan_button.set_sensitive(False)
+
+        def work() -> bool:
+            rescan_pci()
+            if cw.available():
+                cw.refresh_gpus()
+            return dgpu_present() is True
+
+        def done(found: bool) -> None:
+            if found:
+                self.window.toast("dGPU is back")
+            else:
+                self.window.toast("No dGPU found; a reboot may be needed")
+            self.refresh()
+
+        self.window.run(work, done=done, error=self._rescan_failed)
+
+    def _rescan_failed(self, exc: Exception) -> None:
+        self.window.show_error(exc)
+        self.refresh()
 
     def _on_mux_selected(self, row: Gtk.DropDown, _param) -> None:
         if self._loading:
