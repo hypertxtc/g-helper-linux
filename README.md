@@ -24,7 +24,7 @@ System Control Interface on Windows.
 | CPU boost / energy preference | `asusd` | Per-profile EPP in Fans + Power |
 | PPT power limits | `asusd` → asus-armoury attributes | Vertical sliders with Applied/Not Applied status |
 | GPU modes (Eco / Standard / Ultimate / Optimized) | `cardwire` + asusd | Eco/Standard switch at runtime with no reboot; Ultimate queues the firmware MUX |
-| Per-app dGPU launch | `cardwire launch` | Start chosen apps with the dGPU available while Smart mode keeps it blocked elsewhere |
+| Per-app dGPU launch | `cardwire launch` + Smart mode | Settings → dGPU Apps → "Keep the dGPU blocked (Smart)": the dGPU stays off except for apps launched from that list |
 | dGPU disable + GPU MUX | `asusd` → firmware attributes | Queued; requires a reboot. Settings → Rescan dGPU re-enumerates PCI after ECO |
 | Panel overdrive | `asusd` → firmware attributes | Tied to the 120Hz + OD button |
 | Refresh rate + Auto | `kscreen-doctor` (KDE Plasma) | Auto switches 60/max on AC changes while running |
@@ -183,6 +183,27 @@ Press Fn combinations and watch the codes. Some Fn combos are handled inside
 the firmware and never reach Linux; those cannot be mapped. The app opens in
 the corner next to the KDE panel (top, bottom, left or right), not wherever the
 compositor feels like putting it.
+
+### Smart mode and per-app dGPU access
+
+Gaming on battery is the awkward case: the discrete GPU costs power even when
+idle, but blocking it entirely means a game cannot start. cardwire's **Smart**
+mode keeps the dGPU blocked and allows it per launch.
+
+Enable **Settings → dGPU Apps → Keep the dGPU blocked (Smart)**, add the games
+or renderers you care about, and start them with their **Launch** buttons. The
+rest of the desktop stays on the iGPU. The main window shows "GPU Mode: Smart"
+with no preset highlighted, and AC/battery automation (including Optimized's)
+leaves Smart and Manual alone.
+
+The same mode is available from the CLI:
+
+```bash
+cardwire set smart
+cardwire launch -- /usr/bin/steam
+```
+
+Turning the toggle off returns cardwire to **Hybrid**.
 
 ### Power automation (optional)
 

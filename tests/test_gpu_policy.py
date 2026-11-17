@@ -74,6 +74,7 @@ class AutomationShouldSkipTests(unittest.TestCase):
             "gpu_auto": True,
             "cw_available": True,
             "cw_auto": False,
+            "cw_current": "hybrid",
             "firmware_disabled": False,
             "dgpu_present": True,
         }
@@ -102,6 +103,17 @@ class AutomationShouldSkipTests(unittest.TestCase):
 
     def test_cardwire_handling_automation_defers(self) -> None:
         self.assertTrue(self._skip(cw_auto=True))
+
+    def test_smart_mode_is_not_overridden(self) -> None:
+        # Smart blocks the dGPU except for launched apps; moving to integrated
+        # or hybrid on a power change would silently defeat it.
+        self.assertTrue(self._skip(cw_current="smart"))
+
+    def test_manual_mode_is_not_overridden(self) -> None:
+        self.assertTrue(self._skip(cw_current="manual"))
+
+    def test_integrated_mode_can_still_be_automated(self) -> None:
+        self.assertFalse(self._skip(cw_current="integrated"))
 
 
 class FirmwareQueueTests(unittest.TestCase):
@@ -148,6 +160,68 @@ class ModeOutcomeTests(unittest.TestCase):
             ),
             gpu_policy.MODE_OK,
         )
+
+
+class SelectionTests(unittest.TestCase):
+    def _select(self, **overrides: object) -> gpu_policy.GpuSelection:
+        state = {
+            "gpu_auto": False,
+            "current": "hybrid",
+            "dgpu_value": 0,
+            "dgpu_queued": -1,
+            "mux_value": 1,
+            "mux_queued": -1,
+        }
+        state.update(overrides)
+        return gpu_policy.selection(**state)
+
+    def test_optimized_is_selected_when_no_custom_mode_is_active(self) -> None:
+        state = self._select(gpu_auto=True, current="hybrid")
+        self.assertEqual(state.selected, "optimized")
+        self.assertEqual(state.title, "GPU Mode: Optimized")
+
+    def test_live_smart_beats_a_stale_optimized_flag(self) -> None:
+        # Smart can be set from Settings or the CLI; report what cardwire is
+        # actually doing instead of the stored intent.
+        state = self._select(gpu_auto=True, current="smart")
+        self.assertIsNone(state.selected)
+        self.assertEqual(state.title, "GPU Mode: Smart")
+
+    def test_smart_is_named_and_not_claimed_as_standard(self) -> None:
+        state = self._select(current="smart")
+        self.assertIsNone(state.selected)
+        self.assertEqual(state.title, "GPU Mode: Smart")
+        self.assertNotIn("iGPU + dGPU", state.title)
+
+    def test_manual_is_named(self) -> None:
+        state = self._select(current="manual")
+        self.assertIsNone(state.selected)
+        self.assertEqual(state.title, "GPU Mode: Manual")
+
+    def test_integrated_is_eco(self) -> None:
+        state = self._select(current="integrated")
+        self.assertEqual(state.selected, "eco")
+        self.assertEqual(state.title, "GPU Mode: iGPU only")
+
+    def test_firmware_disable_is_eco(self) -> None:
+        self.assertEqual(self._select(dgpu_value=1).selected, "eco")
+
+    def test_queued_disable_is_eco(self) -> None:
+        self.assertEqual(self._select(dgpu_queued=1).selected, "eco")
+
+    def test_mux_is_ultimate(self) -> None:
+        self.assertEqual(self._select(mux_value=0).selected, "ultimate")
+
+    def test_queued_mux_is_ultimate(self) -> None:
+        self.assertEqual(self._select(mux_queued=0).selected, "ultimate")
+
+    def test_hybrid_is_standard(self) -> None:
+        state = self._select()
+        self.assertEqual(state.selected, "standard")
+        self.assertEqual(state.title, "GPU Mode: iGPU + dGPU")
+
+    def test_unknown_mode_is_standard(self) -> None:
+        self.assertEqual(self._select(current=None).selected, "standard")
 
 
 class ErrorTranslationTests(unittest.TestCase):

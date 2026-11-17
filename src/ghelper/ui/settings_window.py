@@ -11,6 +11,7 @@ from .. import APP_VERSION
 from ..backend import asusd as asusd_mod
 from ..backend import autostart
 from ..backend import cardwire as cw
+from ..backend import gpu_policy
 from ..backend import hotkeys as hotkeys_mod
 from ..backend.system import dgpu_present, machine_name, rescan_pci
 from ..deps import Adw, Gio, GLib, Gtk, Pango
@@ -142,6 +143,13 @@ class SettingsWindow(Adw.Window):
 
     def _build_gpu_apps(self, body: Gtk.Box) -> None:
         section = Section("gh-chip-symbolic", "dGPU Apps")
+        self._smart_switch = ToggleRow(
+            "Keep the dGPU blocked (Smart)",
+            subtitle="Only apps launched here may use the discrete GPU.",
+        )
+        self._smart_switch.switch.connect("notify::active", self._on_smart_toggled)
+        section.add(self._smart_switch)
+
         hint = Gtk.Label(
             label="Games and renderers that need the discrete GPU can be "
             "started from here without leaving Smart mode.",
@@ -251,6 +259,23 @@ class SettingsWindow(Adw.Window):
         self.settings.set("gpu_apps", apps)
         self._rebuild_gpu_apps()
 
+    def _on_smart_toggled(self, switch: Gtk.Switch, _param) -> None:
+        if self._loading:
+            return
+        enabled = switch.get_active()
+        target = gpu_policy.SMART_MODE if enabled else "hybrid"
+
+        def done(_result) -> None:
+            if enabled:
+                # Smart is an explicit choice; Optimized must not override it
+                # on the next AC/battery change.
+                self.window.main_view.set_gpu_auto(False)
+            self.window.toast(f"GPU mode: {'Smart' if enabled else 'Standard'}")
+            self.window.main_view.refresh()
+            self.refresh()
+
+        self.window.run(lambda: cw.set_mode(target), done=done, error=self._failed)
+
     def _build_battery(self, body: Gtk.Box) -> None:
         section = Section("gh-battery-symbolic", "Battery")
         self._charge_value = ValueRow("Charge", "\u2014")
@@ -355,6 +380,12 @@ class SettingsWindow(Adw.Window):
         data["pending"] = self.asusd.pending_reboot()
         data["asusd_version"] = self.asusd.version
         data["cardwire"] = cw.available()
+        data["cw_current"] = None
+        if data["cardwire"]:
+            try:
+                data["cw_current"] = cw.get_state().get("current")
+            except cw.CardwireError:
+                pass
         data["hotkeys"] = hotkeys_mod.probe()
         data["battery"] = self.window.monitor.battery()
         data["dgpu_present"] = dgpu_present()
@@ -386,6 +417,14 @@ class SettingsWindow(Adw.Window):
             cleared = dgpu is None or int(dgpu.get("CurrentValue", 0)) == 0
             self._rescan_button.set_sensitive(
                 data.get("dgpu_present") is False and cleared
+            )
+            current = (data.get("cw_current") or "").lower()
+            self._smart_switch.set_active(current == gpu_policy.SMART_MODE)
+            self._smart_switch.set_sensitive(
+                bool(data.get("cardwire"))
+                and bool(current)
+                and data.get("dgpu_present") is not False
+                and cleared
             )
             mux = attrs.get(asusd_mod.ATTR_GPU_MUX)
             if mux is not None:

@@ -53,7 +53,11 @@ These change a setting and exit.  They do not need a running window.
 Switch the platform profile.
 .TP
 .B \-\-gpu\-mode \fIintegrated\fR|\fIhybrid\fR|\fIsmart\fR|\fImanual\fR
-Set the cardwire GPU mode.
+Set the cardwire GPU mode.  Smart keeps the discrete GPU blocked and allows
+it per launch with
+.BR "cardwire launch" ;
+the window exposes it under
+.BR "Settings \(-> dGPU Apps" .
 .TP
 .B \-\-charge\-limit \fIPERCENT\fR
 Set the battery charge limit (20\-100).

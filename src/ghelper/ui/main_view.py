@@ -316,24 +316,18 @@ class MainView(Gtk.Box):
         dgpu_value = int(dgpu.get("CurrentValue", 0)) if dgpu else None
         mux_queued = int(mux.get("QueuedGpuValue", -1)) if mux else -1
         dgpu_queued = int(dgpu.get("QueuedGpuValue", -1)) if dgpu else -1
-        current = (data.get("cw_current") or "").lower()
 
-        if self._gpu_auto:
-            selected = "optimized"
-            title = "GPU Mode: Optimized"
-        elif current == "integrated" or dgpu_value == 1 or dgpu_queued == 1:
-            selected = "eco"
-            title = "GPU Mode: iGPU only"
-        elif mux_value == 0 or mux_queued == 0:
-            selected = "ultimate"
-            title = "GPU Mode: Ultimate"
-        else:
-            selected = "standard"
-            title = "GPU Mode: iGPU + dGPU"
-
-        self.gpu_section.set_title(title)
+        state = gpu_policy.selection(
+            gpu_auto=self._gpu_auto,
+            current=data.get("cw_current"),
+            dgpu_value=dgpu_value,
+            dgpu_queued=dgpu_queued,
+            mux_value=mux_value,
+            mux_queued=mux_queued,
+        )
+        self.gpu_section.set_title(state.title)
         for mode, button in self._gpu_buttons.items():
-            button.set_selected(mode == selected)
+            button.set_selected(mode == state.selected)
             button.set_sensitive(True)
 
     def _apply_screen(self, data: dict) -> None:
@@ -512,6 +506,7 @@ class MainView(Gtk.Box):
             gpu_auto=self._gpu_auto,
             cw_available=cw.available(),
             cw_auto=self._cw_auto,
+            cw_current=self._cw_current,
             firmware_disabled=self._firmware_gpu_disabled(),
             dgpu_present=self._dgpu_present(),
         ):
@@ -536,10 +531,18 @@ class MainView(Gtk.Box):
         self.window.apply_profile(profile)
 
     # -- GPU actions ------------------------------------------------------
+    def set_gpu_auto(self, enabled: bool) -> None:
+        """Record whether Optimized drives the GPU.
+
+        Settings calls this when Smart mode takes over, so the main window
+        stops claiming Optimized is in charge.
+        """
+        self._gpu_auto = bool(enabled)
+        self.settings.set("gpu_auto", bool(enabled))
+
     def _on_gpu_clicked(self, _button: Gtk.Button, mode: str) -> None:
         if mode == "optimized":
-            self._gpu_auto = True
-            self.settings.set("gpu_auto", True)
+            self.set_gpu_auto(True)
 
             def work() -> gpu_policy.OptimizedPlan:
                 # Fresh reads on the worker: the cached attributes may still be
@@ -568,8 +571,7 @@ class MainView(Gtk.Box):
             self.window.run(work, done=done, error=self._gpu_failed)
             return
 
-        self._gpu_auto = False
-        self.settings.set("gpu_auto", False)
+        self.set_gpu_auto(False)
         if mode == "eco":
             self._apply_gpu_mode("integrated", "Eco")
         elif mode == "standard":

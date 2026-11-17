@@ -28,6 +28,20 @@ MODE_OK = "ok"
 MODE_CHANGED = "changed"
 MODE_REBOOT = "reboot"
 
+# cardwire modes the main window has no button for: they are deliberately set
+# from Settings or the CLI, and must not be overridden by "Optimized".
+SMART_MODE = "smart"
+CUSTOM_MODES = frozenset({"smart", "manual"})
+CUSTOM_TITLES = {"smart": "Smart", "manual": "Manual"}
+
+
+@dataclass(frozen=True)
+class GpuSelection:
+    """Which main-window button is highlighted, and what the section says."""
+
+    selected: str | None
+    title: str
+
 
 @dataclass(frozen=True)
 class OptimizedPlan:
@@ -72,6 +86,7 @@ def automation_should_skip(
     gpu_auto: bool,
     cw_available: bool,
     cw_auto: bool | None,
+    cw_current: str | None,
     firmware_disabled: bool,
     dgpu_present: bool | None,
 ) -> bool:
@@ -79,13 +94,47 @@ def automation_should_skip(
 
     Defer to cardwire unless it is positively known to have its own switch
     off: the query is slow, and when the switch is on cardwire already moves
-    between integrated and its configured mode on its own.
+    between integrated and its configured mode on its own.  Smart and Manual
+    are explicit choices, so automation must not touch them either.
     """
     if not gpu_auto or not cw_available:
+        return True
+    if is_custom_mode(cw_current):
         return True
     if not cardwire_can_switch(firmware_disabled, dgpu_present):
         return True
     return cw_auto is not False
+
+
+def is_custom_mode(current: str | None) -> bool:
+    """True for cardwire modes the main window cannot represent as a button."""
+    return (current or "").lower() in CUSTOM_MODES
+
+
+def selection(
+    *,
+    gpu_auto: bool,
+    current: str | None,
+    dgpu_value: int | None,
+    dgpu_queued: int,
+    mux_value: int | None,
+    mux_queued: int,
+) -> GpuSelection:
+    """Map live firmware and cardwire state onto the GPU mode row.
+
+    Smart and Manual get no highlighted button: claiming Standard would say
+    the dGPU is available when cardwire is keeping it blocked.
+    """
+    mode = (current or "").lower()
+    if mode in CUSTOM_MODES:
+        return GpuSelection(None, f"GPU Mode: {CUSTOM_TITLES[mode]}")
+    if gpu_auto:
+        return GpuSelection("optimized", "GPU Mode: Optimized")
+    if mode == "integrated" or dgpu_value == 1 or dgpu_queued == 1:
+        return GpuSelection("eco", "GPU Mode: iGPU only")
+    if mux_value == 0 or mux_queued == 0:
+        return GpuSelection("ultimate", "GPU Mode: Ultimate")
+    return GpuSelection("standard", "GPU Mode: iGPU + dGPU")
 
 
 def firmware_queue_needed(cw_mode: str) -> bool:
