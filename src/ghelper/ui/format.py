@@ -92,9 +92,14 @@ def status_line(
     gpu_temp: float | int | None,
     ac_online: bool | None = None,
     battery: dict[str, Any] | None = None,
+    *,
+    gpu_mode: str | None = None,
+    pending_reboot: bool = False,
 ) -> str:
-    """One compact line, e.g. ``Balanced · CPU 57°C · GPU 41°C · AC · 78% · 12.3 W``."""
+    """One compact line, e.g. ``Balanced · GPU Smart · CPU 57°C · GPU 41°C · AC · 78%``."""
     parts = [profile] if profile else []
+    if gpu_mode:
+        parts.append(f"GPU {gpu_mode.title()}")
     cpu = temperature(cpu_temp)
     gpu = temperature(gpu_temp)
     if cpu is not None:
@@ -106,4 +111,6 @@ def status_line(
     battery_text = battery_line(battery)
     if battery_text:
         parts.append(battery_text)
+    if pending_reboot:
+        parts.append("Reboot required")
     return SEPARATOR.join(parts)

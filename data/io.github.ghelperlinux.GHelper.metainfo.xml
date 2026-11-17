@@ -59,6 +59,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.2.2" date="2026-11-17">
+      <description>
+        <p>Tray and startup polish.</p>
+        <ul>
+          <li>The tray menu switches GPU modes (Eco, Standard, Smart, Optimized) as well as performance profiles.</li>
+          <li>Settings → Startup enables or disables the POST boot sound.</li>
+          <li>The GPU section and the tray tooltip say when a firmware change is waiting for a reboot.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.1" date="2026-11-17">
       <description>
         <p>Smart GPU mode and per-app dGPU access.</p>

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.2.1}
+Version:        %{?gh_version}%{!?gh_version:0.2.2}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,6 +64,11 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Tue Nov 17 2026 George <george@localhost> - 0.2.2-1
+- Tray menu switches GPU modes: Eco, Standard, Smart and Optimized
+- Boot sound toggle in Settings -> Startup
+- GPU section and tray tooltip show when a reboot is required
+
 * Tue Nov 17 2026 George <george@localhost> - 0.2.1-1
 - Smart GPU mode: keep the dGPU blocked except for launched apps
 - Main window names Smart and Manual instead of claiming Standard

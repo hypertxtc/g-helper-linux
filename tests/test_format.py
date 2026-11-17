@@ -82,6 +82,17 @@ class FormatTests(unittest.TestCase):
         self.assertTrue(line.startswith("Balanced  \u00b7  CPU 57\u00b0C"))
         self.assertTrue(line.endswith("78%  \u00b7  12.3 W  \u00b7  3h 55m"))
 
+    def test_status_line_includes_gpu_mode(self) -> None:
+        line = status_line("Balanced", 57, 41, True, gpu_mode="smart")
+        self.assertTrue(line.startswith("Balanced  \u00b7  GPU Smart  \u00b7  CPU 57\u00b0C"))
+
+    def test_status_line_flags_a_pending_reboot(self) -> None:
+        line = status_line("Turbo", 60, 45, True, pending_reboot=True)
+        self.assertTrue(line.endswith("Reboot required"))
+
+    def test_status_line_omits_absent_extras(self) -> None:
+        self.assertEqual(status_line("Silent", None, None, None), "Silent")
+
 
 if __name__ == "__main__":
     unittest.main()

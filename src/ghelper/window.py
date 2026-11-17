@@ -191,6 +191,8 @@ class MainWindow(Adw.ApplicationWindow):
             gpu,
             snapshot.get("ac_online"),
             snapshot.get("battery"),
+            gpu_mode=self.main_view.gpu_quick_state(),
+            pending_reboot=self.main_view.pending_reboot(),
         )
         self._tray.set_tooltip(line)
         self._tray.set_gpu_state(self.main_view.gpu_quick_state())

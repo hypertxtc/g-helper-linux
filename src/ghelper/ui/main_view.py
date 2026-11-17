@@ -76,6 +76,7 @@ class MainView(Gtk.Box):
         self._last_ac: bool | None = None
         self._cw_auto: bool | None = None
         self._gpu_quick: str | None = None
+        self._pending_reboot = False
         self._keyboard_built = False
 
         self.set_margin_top(10)
@@ -245,7 +246,12 @@ class MainView(Gtk.Box):
             "display_error": None,
             "aura": None,
             "limit": None,
+            "pending": False,
         }
+        try:
+            data["pending"] = self.asusd.pending_reboot()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("pending reboot check failed: %s", exc)
         try:
             data["profile"] = self.asusd.platform_profile()
         except Exception as exc:  # noqa: BLE001
@@ -327,6 +333,10 @@ class MainView(Gtk.Box):
             mux_queued=mux_queued,
         )
         self._gpu_quick = gpu_policy.tray_mode(state.selected, data.get("cw_current"))
+        self._pending_reboot = bool(data.get("pending"))
+        self.gpu_section.set_live(
+            "Reboot required" if self._pending_reboot else ""
+        )
         self.gpu_section.set_title(state.title)
         for mode, button in self._gpu_buttons.items():
             button.set_selected(mode == state.selected)
@@ -545,6 +555,10 @@ class MainView(Gtk.Box):
     def gpu_quick_state(self) -> str | None:
         """The tray's radio state, from the last refresh."""
         return self._gpu_quick
+
+    def pending_reboot(self) -> bool:
+        """Whether firmware is waiting for a reboot, from the last refresh."""
+        return self._pending_reboot
 
     def set_gpu_mode(self, mode: str) -> None:
         """Change modes from outside the window, e.g. the tray menu."""
