@@ -35,6 +35,10 @@ MODE_NAMES = {
 
 BRIGHTNESS_NAMES = {0: "Off", 1: "Low", 2: "Medium", 3: "High"}
 
+#: asusd's speed names, as stored in ``LedModeData``.
+SPEED_NAMES = ("Low", "Med", "High")
+SPEED_LABELS = {"Low": "Slow", "Med": "Medium", "High": "Fast"}
+
 
 class AuraError(RuntimeError):
     pass
@@ -91,15 +95,17 @@ class Aura:
         data = raw.get("LedModeData")
         mode = int(raw.get("LedMode", 0))
         color = (255, 255, 255)
-        speed = 0
-        direction = "Med"
-        zone = "Right"
+        zone = 0
+        speed = "Med"
+        direction = "Right"
         if data is not None and len(data) >= 6:
             mode = int(data[0])
-            speed = int(data[1])
+            # LedModeData is (mode, zone, colour1, colour2, speed, direction);
+            # speed and direction are strings, not numbers.
+            zone = int(data[1])
             color = tuple(int(v) for v in data[2])
-            direction = str(data[4])
-            zone = str(data[5])
+            speed = str(data[4])
+            direction = str(data[5])
         return {
             "mode": mode,
             "mode_name": MODE_NAMES.get(mode, f"Mode {mode}"),
@@ -107,9 +113,9 @@ class Aura:
             "supported_modes": [int(v) for v in raw.get("SupportedBasicModes", [])],
             "supported_brightness": [int(v) for v in raw.get("SupportedBrightness", [])],
             "color": color,
+            "zone": zone,
             "speed": speed,
             "direction": direction,
-            "zone": zone,
         }
 
     def set_brightness(self, value: int) -> None:
@@ -134,22 +140,20 @@ class Aura:
         except dbus.DBusException as exc:
             raise AuraError(f"could not set keyboard mode: {exc}") from exc
 
-    def set_color(self, color: tuple[int, int, int]) -> None:
-        try:
-            raw = self._props().GetAll(AURA_IFACE, timeout=TIMEOUT)
-        except dbus.DBusException as exc:
-            raise AuraError(str(exc)) from exc
-        data = raw.get("LedModeData")
-        if data is None:
-            raise AuraError("keyboard colour data not available")
-        mode, speed = int(data[0]), int(data[1])
-        color2 = tuple(int(v) for v in data[3])
-        direction, zone = str(data[4]), str(data[5])
+    def _write_data(
+        self,
+        mode: int,
+        zone: int,
+        color: tuple[int, int, int],
+        color2: tuple[int, int, int],
+        speed: str,
+        direction: str,
+    ) -> None:
         red, green, blue = (max(0, min(255, int(v))) for v in color)
         payload = dbus.Struct(
             (
-                dbus.UInt32(mode),
-                dbus.UInt32(speed),
+                dbus.UInt32(int(mode)),
+                dbus.UInt32(int(zone)),
                 dbus.Struct(
                     (dbus.Byte(red), dbus.Byte(green), dbus.Byte(blue)),
                     signature="yyy",
@@ -158,8 +162,8 @@ class Aura:
                     (dbus.Byte(color2[0]), dbus.Byte(color2[1]), dbus.Byte(color2[2])),
                     signature="yyy",
                 ),
-                dbus.String(direction),
-                dbus.String(zone),
+                dbus.String(str(speed)),
+                dbus.String(str(direction)),
             ),
             signature="uu(yyy)(yyy)ss",
             variant_level=1,
@@ -167,4 +171,37 @@ class Aura:
         try:
             self._props().Set(AURA_IFACE, "LedModeData", payload, timeout=TIMEOUT)
         except dbus.DBusException as exc:
-            raise AuraError(f"could not set keyboard colour: {exc}") from exc
+            raise AuraError(f"could not set keyboard lighting: {exc}") from exc
+
+    def _data(self) -> tuple[int, int, tuple, tuple, str, str]:
+        try:
+            raw = self._props().GetAll(AURA_IFACE, timeout=TIMEOUT)
+        except dbus.DBusException as exc:
+            raise AuraError(str(exc)) from exc
+        data = raw.get("LedModeData")
+        if data is None or len(data) < 6:
+            raise AuraError("keyboard lighting data not available")
+        return (
+            int(data[0]),
+            int(data[1]),
+            tuple(int(v) for v in data[2]),
+            tuple(int(v) for v in data[3]),
+            str(data[4]),
+            str(data[5]),
+        )
+
+    def set_color(self, color: tuple[int, int, int]) -> None:
+        mode, zone, _color, color2, speed, direction = self._data()
+        self._write_data(mode, zone, color, color2, speed, direction)
+
+    def set_speed(self, value: str | int) -> None:
+        """Animation speed: ``Low`` / ``Med`` / ``High`` (or 0 / 1 / 2)."""
+        if isinstance(value, int):
+            index = max(0, min(len(SPEED_NAMES) - 1, value))
+            speed = SPEED_NAMES[index]
+        else:
+            speed = str(value).strip().capitalize()
+            if speed not in SPEED_NAMES:
+                raise AuraError(f"unknown keyboard speed {value!r}")
+        mode, zone, color, color2, _speed, direction = self._data()
+        self._write_data(mode, zone, color, color2, speed, direction)

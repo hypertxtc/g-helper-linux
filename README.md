@@ -27,9 +27,9 @@ System Control Interface on Windows.
 | dGPU disable + GPU MUX | `asusd` → firmware attributes | Queued; requires a reboot |
 | Panel overdrive | `asusd` → firmware attributes | Tied to the 120Hz + OD button |
 | Refresh rate + Auto | `kscreen-doctor` (KDE Plasma) | Auto switches 60/max on AC changes while running |
-| Keyboard lighting | `asusd` → `xyz.ljones.Aura` | Brightness, effect mode and colour |
+| Keyboard lighting | `asusd` → `xyz.ljones.Aura` | Brightness, effect mode, colour and animation speed |
 | Battery charge limit / one-shot full charge | `asusd` | Restored by asusd after suspend/reboot |
-| Battery readout | sysfs | Charge %, charge/discharge watts and rough time remaining in the window and tray tooltip |
+| Battery readout | sysfs | Charge %, charge/discharge watts and rough time remaining in the window and tray tooltip; health, capacity and cycles in Settings |
 | Fn / ROG key mappings | evdev (passive read) | Map keys in Settings → Hotkeys; needs the bundled udev rule |
 | Opens next to the taskbar | KWin scripting (Plasma) | Uses the work area, so top/bottom/left/right panels all work |
 | Live temperatures and fan percentages | sysfs / `/proc` | dGPU asleep is reported honestly |

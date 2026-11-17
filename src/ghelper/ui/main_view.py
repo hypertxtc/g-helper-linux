@@ -164,6 +164,20 @@ class MainView(Gtk.Box):
             self._keyboard_row.append(self._color_text)
         self._keyboard_row.append(self._brightness_dropdown)
         self.keyboard_section.add(self._keyboard_row)
+
+        self._speed_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        speed_label = Gtk.Label(label="Speed", xalign=0.0)
+        speed_label.add_css_class("gh-live")
+        self._speed_row.append(speed_label)
+        self._speed_dropdown = dropdown(
+            [aura_mod.SPEED_LABELS[name] for name in aura_mod.SPEED_NAMES]
+        )
+        self._speed_dropdown.set_hexpand(False)
+        self._speed_dropdown.connect("notify::selected", self._on_aura_speed)
+        self._speed_row.append(self._speed_dropdown)
+        self._speed_row.set_visible(False)
+        self.keyboard_section.add(self._speed_row)
+
         self.keyboard_section.set_visible(False)
         self.append(self.keyboard_section)
 
@@ -373,6 +387,14 @@ class MainView(Gtk.Box):
             current_mode = int(state.get("mode", 0))
             if current_mode in self._mode_ids:
                 self._mode_dropdown.set_selected(self._mode_ids.index(current_mode))
+
+            # Speed only affects the animated modes; static ignores it.
+            self._speed_row.set_visible(current_mode != 0)
+            current_speed = str(state.get("speed") or "Med")
+            if current_speed in aura_mod.SPEED_NAMES:
+                self._speed_dropdown.set_selected(
+                    aura_mod.SPEED_NAMES.index(current_speed)
+                )
 
             brightness_values = state.get("supported_brightness") or [0, 1, 2, 3]
             self._brightness_values = [int(v) for v in brightness_values]
@@ -637,6 +659,17 @@ class MainView(Gtk.Box):
             value = values[index]
             self.window.run(
                 lambda: self.aura.set_brightness(value),
+                error=self.window.show_error,
+            )
+
+    def _on_aura_speed(self, row: Gtk.DropDown, _param) -> None:
+        if self._loading:
+            return
+        index = row.get_selected()
+        if 0 <= index < len(aura_mod.SPEED_NAMES):
+            speed = aura_mod.SPEED_NAMES[index]
+            self.window.run(
+                lambda: self.aura.set_speed(speed),
                 error=self.window.show_error,
             )
 

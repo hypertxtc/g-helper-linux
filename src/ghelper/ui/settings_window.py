@@ -11,6 +11,7 @@ from ..backend import cardwire as cw
 from ..backend import hotkeys as hotkeys_mod
 from ..backend.system import machine_name
 from ..deps import Adw, Gtk
+from .format import battery_line
 from .theme import register_root
 from .widgets import Section, ToggleRow, ValueRow, dropdown, flat_button
 
@@ -55,6 +56,7 @@ class SettingsWindow(Adw.Window):
         self._build_power(body)
         self._build_cpu(body)
         self._build_gpu(body)
+        self._build_battery(body)
         self._build_hotkeys(body)
         self._build_window(body)
         self._build_about(body)
@@ -123,6 +125,21 @@ class SettingsWindow(Adw.Window):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         row.append(apply)
         section.add(row)
+        body.append(section)
+
+    def _build_battery(self, body: Gtk.Box) -> None:
+        section = Section("gh-battery-symbolic", "Battery")
+        self._charge_value = ValueRow("Charge", "\u2014")
+        self._health_value = ValueRow("Health", "\u2014")
+        self._cycles_value = ValueRow("Cycles", "\u2014")
+        self._limit_value = ValueRow("Charge limit", "\u2014")
+        for row in (
+            self._charge_value,
+            self._health_value,
+            self._cycles_value,
+            self._limit_value,
+        ):
+            section.add(row)
         body.append(section)
 
     def _build_hotkeys(self, body: Gtk.Box) -> None:
@@ -215,6 +232,7 @@ class SettingsWindow(Adw.Window):
         data["asusd_version"] = self.asusd.version
         data["cardwire"] = cw.available()
         data["hotkeys"] = hotkeys_mod.probe()
+        data["battery"] = self.window.monitor.battery()
         return data
 
     def _apply(self, data: dict) -> None:
@@ -263,6 +281,40 @@ class SettingsWindow(Adw.Window):
             self._hotkey_status.set_value("readable")
         else:
             self._hotkey_status.set_value("not readable \u2014 install the udev rule")
+
+        self._apply_battery_values(data.get("battery") or {})
+
+    def _apply_battery_values(self, battery: dict) -> None:
+        if not battery:
+            for row in (
+                self._charge_value,
+                self._health_value,
+                self._cycles_value,
+                self._limit_value,
+            ):
+                row.set_value("not detected")
+            return
+        self._charge_value.set_value(battery_line(battery) or "unknown")
+
+        health = battery.get("health")
+        full = battery.get("full_wh")
+        design = battery.get("design_wh")
+        if health is None:
+            self._health_value.set_value("not reported")
+        elif full and design:
+            self._health_value.set_value(
+                f"{float(health):.0f}% ({float(full):.1f} of {float(design):.1f} Wh)"
+            )
+        else:
+            self._health_value.set_value(f"{float(health):.0f}%")
+
+        cycles = battery.get("cycles")
+        self._cycles_value.set_value(str(int(cycles)) if cycles else "not reported")
+
+        limit = battery.get("limit")
+        self._limit_value.set_value(
+            f"{int(limit)}%" if limit is not None else "not reported"
+        )
 
     # -- handlers ---------------------------------------------------------
     def _failed(self, exc: Exception) -> None:
