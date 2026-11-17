@@ -100,20 +100,36 @@ Or run without installing:
 PYTHONPATH=src python3 -m ghelper --debug
 ```
 
-There is also an RPM spec in `packaging/ghelper-linux.spec` for Fedora
-packaging.
+### Build packages
 
-### Build an RPM
+Both packages install the same files, because both call `make install`.
+
+**Fedora RPM**
 
 ```bash
 sudo dnf install rpm-build make
-mkdir -p ~/rpmbuild/{SOURCES,SPECS}
-tar --transform 's,^\.,ghelper-linux-0.1.0,' \
-    --exclude='__pycache__' --exclude='*.pyc' \
-    -czf ~/rpmbuild/SOURCES/ghelper-linux-0.1.0.tar.gz .
-rpmbuild -ba packaging/ghelper-linux.spec
-sudo dnf install ~/rpmbuild/RPMS/noarch/ghelper-linux-0.1.0-1.*.rpm
+make rpm                        # ~/rpmbuild/RPMS/noarch/ghelper-linux-<version>-1.*.rpm
+make rpm RPMTOP=/tmp/rpmbuild   # build somewhere else
 ```
+
+The spec lives in `packaging/ghelper-linux.spec` and runs the unit tests,
+`desktop-file-validate` and `appstreamcli validate` as `%check`.
+
+**Debian / Ubuntu DEB**
+
+```bash
+sudo apt install dpkg-dev debhelper
+make deb                        # build/ghelper-linux_<version>-1_all.deb
+```
+
+The packaging lives in `debian/`, installs through the same Makefile and runs
+the same tests from `debian/rules`. `lintian` is clean.
+
+**From CI**
+
+Every push builds both packages and uploads them as the `rpm` and `deb`
+artifacts on the workflow run. Pushing a `v*` tag additionally attaches both to
+that GitHub release, so a release page always carries installable packages.
 
 ## Usage
 

@@ -1,0 +1,6 @@
+# The udev rules grant uaccess to two hotkey devices by name; they do not match
+# modaliases, so there is no hardware-provides data for AppStream to publish.
+ghelper-linux: appstream-metadata-missing-modalias-provide
+# Distributed from the project's own releases, not uploaded to a Debian
+# archive, so the first changelog entry has no bug number to close.
+ghelper-linux: initial-upload-closes-no-bugs

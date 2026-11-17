@@ -15,7 +15,7 @@ POLICYDIR := $(SHAREDIR)/polkit-1/actions
 UNITDIR := $(DESTDIR)$(PREFIX)/lib/systemd/user
 UDEVDIR := $(DESTDIR)$(PREFIX)/lib/udev/rules.d
 
-.PHONY: run check test install uninstall icon rpm
+.PHONY: run check test install uninstall icon rpm deb
 
 run:
 	PYTHONPATH=src python3 -m ghelper
@@ -89,3 +89,11 @@ rpm:
 		-czf $(RPMTOP)/SOURCES/$(NAME)-$(VERSION).tar.gz .
 	rpmbuild --define "_topdir $(RPMTOP)" --define "gh_version $(VERSION)" \
 		-ba packaging/$(NAME).spec
+
+# Needs dpkg-dev and debhelper, so this is for Debian/Ubuntu hosts; the CI
+# builds the same package from debian/ inside a Debian container.
+deb:
+	dpkg-buildpackage -us -uc -b
+	mkdir -p build
+	mv ../$(NAME)_$(VERSION)-*.deb build/
+	mv ../$(NAME)_$(VERSION)-*.buildinfo build/ 2>/dev/null || true

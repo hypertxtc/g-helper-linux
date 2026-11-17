@@ -62,6 +62,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.2.3" date="2026-11-17">
+      <description>
+        <p>Desktop polish and packaging.</p>
+        <ul>
+          <li>Refresh-rate control stays read-only with an explanation on desktops other than KDE Plasma, instead of failing with a KWin error.</li>
+          <li>The AppStream metadata links to the project homepage and issue tracker.</li>
+          <li>Packages are built for Debian and Ubuntu as well as Fedora.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.2" date="2026-11-17">
       <description>
         <p>Tray and startup polish.</p>

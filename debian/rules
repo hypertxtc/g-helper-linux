@@ -1,0 +1,19 @@
+#!/usr/bin/make -f
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+%:
+	dh $@
+
+# Nothing is compiled and there is no configure script; the Makefile does the
+# installing so the Debian and RPM packages ship the same layout.
+override_dh_auto_configure:
+
+override_dh_auto_build:
+
+override_dh_auto_clean:
+
+override_dh_auto_test:
+	PYTHONPATH=src python3 -m unittest discover -s tests -v
+
+override_dh_auto_install:
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/ghelper-linux PREFIX=/usr

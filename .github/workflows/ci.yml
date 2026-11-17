@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 permissions:
@@ -10,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    name: Lint, test and package
+    name: Lint, test and package (RPM)
     runs-on: ubuntu-latest
     container: fedora:latest
     steps:
@@ -46,3 +47,78 @@ jobs:
           rpm -qp --qf '%{NAME} %{VERSION}-%{RELEASE}\n' /tmp/rpmbuild/RPMS/noarch/*.rpm
           rpm -qpl /tmp/rpmbuild/RPMS/noarch/*.rpm | sort
           rpm -qpl /tmp/rpmbuild/RPMS/noarch/*.rpm | grep -q metainfo.xml
+
+      - name: Upload RPM
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpm
+          path: /tmp/rpmbuild/RPMS/noarch/*.rpm
+          if-no-files-found: error
+
+  deb:
+    name: Build Debian package (DEB)
+    runs-on: ubuntu-latest
+    container: debian:stable
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential debhelper fakeroot dpkg-dev git lintian \
+            python3 python3-gi python3-dbus gir1.2-gtk-4.0 gir1.2-adw-1 \
+            desktop-file-utils appstream
+
+      - uses: actions/checkout@v7
+
+      # debian/rules delegates to "make install", so the DEB and RPM ship the
+      # same layout; the unit tests run from override_dh_auto_test.
+      - name: Build DEB
+        run: |
+          dpkg-buildpackage -us -uc -b
+          mkdir -p dist
+          cp ../ghelper-linux_*.deb dist/
+
+      - name: Lint and inspect DEB
+        run: |
+          lintian --fail-on error dist/*.deb
+          dpkg-deb -I dist/*.deb
+          dpkg-deb -c dist/*.deb | sort
+          dpkg-deb -c dist/*.deb | grep -q metainfo.xml
+
+      - name: Install and run the package
+        run: |
+          dpkg -i dist/*.deb
+          ghelper-linux --version
+
+      - name: Upload DEB
+        uses: actions/upload-artifact@v7
+        with:
+          name: deb
+          path: dist/*.deb
+          if-no-files-found: error
+
+  release:
+    name: Attach packages to the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, deb]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" \
+              --title "g-helper-linux ${GITHUB_REF_NAME#v}" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/* --clobber

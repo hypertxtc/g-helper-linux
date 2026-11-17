@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.2.2}
+Version:        %{?gh_version}%{!?gh_version:0.2.3}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,12 +64,17 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
-* Tue Nov 17 2026 George <george@localhost> - 0.2.2-1
+* Tue Nov 17 2026 Atlas <atlas@hypertextcoffee.com> - 0.2.3-1
+- Refresh-rate control is read-only off KDE Plasma, with an explanation
+- AppStream metadata links to the homepage and issue tracker
+- CI builds a Debian package as well as the RPM
+
+* Tue Nov 17 2026 Atlas <atlas@hypertextcoffee.com> - 0.2.2-1
 - Tray menu switches GPU modes: Eco, Standard, Smart and Optimized
 - Boot sound toggle in Settings -> Startup
 - GPU section and tray tooltip show when a reboot is required
 
-* Tue Nov 17 2026 George <george@localhost> - 0.2.1-1
+* Tue Nov 17 2026 Atlas <atlas@hypertextcoffee.com> - 0.2.1-1
 - Smart GPU mode: keep the dGPU blocked except for launched apps
 - Main window names Smart and Manual instead of claiming Standard
 - AC/battery automation leaves Smart and Manual modes alone
@@ -77,7 +82,7 @@ appstreamcli validate --no-net \
   when the dGPU is absent
 - Installing no longer rewrites the tracked icon
 
-* Tue Nov 17 2026 George <george@localhost> - 0.2.0-1
+* Tue Nov 17 2026 Atlas <atlas@hypertextcoffee.com> - 0.2.0-1
 - Silent / Balanced / Turbo profiles with editable fan curves
 - Fan-curve presets, copy between profiles, JSON import/export
 - cardwire GPU modes: Eco and Standard switch at runtime, no reboot
@@ -89,5 +94,5 @@ appstreamcli validate --no-net \
 - Window opens next to the KDE panel on any screen edge
 - AppStream metadata and a man page
 
-* Tue Nov 17 2026 George <george@localhost> - 0.1.0-1
+* Tue Nov 17 2026 Atlas <atlas@hypertextcoffee.com> - 0.1.0-1
 - Initial package

@@ -1,0 +1,8 @@
+ghelper-linux (0.2.3-1) unstable; urgency=medium
+
+  * Refresh-rate control stays read-only on desktops other than KDE Plasma
+    and says so, instead of failing with a KWin error on GNOME or wlroots.
+  * AppStream metadata now links to the project homepage and issue tracker.
+  * CI builds a Debian package alongside the RPM.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Tue, 17 Nov 2026 14:20:00 -0500

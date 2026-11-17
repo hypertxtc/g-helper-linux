@@ -57,6 +57,12 @@ class VersionTests(unittest.TestCase):
         assert match is not None
         self.assertEqual(match.group(1), APP_VERSION)
 
+    def test_debian_changelog_matches_app_version(self) -> None:
+        text = (ROOT / "debian/changelog").read_text(encoding="utf-8")
+        match = re.match(r"ghelper-linux \(([^)]+)\)", text)
+        assert match is not None
+        self.assertEqual(match.group(1), f"{APP_VERSION}-1")
+
     def test_appstream_release_date_is_iso(self) -> None:
         match = re.search(r'<release version="[^"]+" date="([^"]+)"', metainfo_text())
         assert match is not None
@@ -115,6 +121,25 @@ class InstalledFilesTests(unittest.TestCase):
     def test_man_page_is_troff(self) -> None:
         text = (ROOT / "docs/ghelper-linux.1").read_text(encoding="utf-8")
         self.assertTrue(text.startswith(".TH GHELPER-LINUX 1"))
+
+
+class DebianPackagingTests(unittest.TestCase):
+    def test_debian_package_installs_through_the_makefile(self) -> None:
+        rules = (ROOT / "debian/rules").read_text(encoding="utf-8")
+        self.assertIn(
+            "$(MAKE) install DESTDIR=$(CURDIR)/debian/ghelper-linux", rules
+        )
+
+    def test_debian_runtime_dependencies_are_declared(self) -> None:
+        control = (ROOT / "debian/control").read_text(encoding="utf-8")
+        for dependency in (
+            "python3-gi",
+            "python3-dbus",
+            "gir1.2-gtk-4.0",
+            "gir1.2-adw-1",
+        ):
+            with self.subTest(dependency=dependency):
+                self.assertIn(dependency, control)
 
 
 class PolicyTests(unittest.TestCase):
