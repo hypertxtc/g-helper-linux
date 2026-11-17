@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from ghelper.backend import asusd, cardwire, display  # noqa: E402
+from ghelper.backend import asusd, cardwire, display, system  # noqa: E402
 
 
 class ProfileMappingTests(unittest.TestCase):
@@ -88,6 +88,28 @@ class DisplayParserTests(unittest.TestCase):
 
     def test_parse_ignores_leading_noise(self) -> None:
         self.assertEqual(display.parse_outputs("noise\nmore noise"), [])
+
+
+class DisplayControllerTests(unittest.TestCase):
+    def test_counts_display_classes(self) -> None:
+        self.assertEqual(
+            system.count_display_controllers(
+                ["0x030000", "0x030000", "0x020000", "0x060000"]
+            ),
+            2,
+        )
+        self.assertEqual(system.count_display_controllers(["0x030000"]), 1)
+        self.assertEqual(system.count_display_controllers([]), 0)
+
+    def test_junk_classes_are_ignored(self) -> None:
+        self.assertEqual(
+            system.count_display_controllers(["nonsense", "", None, "0x030000"]), 1
+        )
+
+    def test_3d_controllers_count(self) -> None:
+        self.assertEqual(
+            system.count_display_controllers(["0x030200", "0x038000"]), 2
+        )
 
 
 if __name__ == "__main__":

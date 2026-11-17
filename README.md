@@ -293,9 +293,10 @@ src/ghelper/
   BIOS defaults from the Fans page.
 - GPU MUX / dGPU-disable changes are queued in firmware and need a reboot.
   Cardwire's modes are the runtime equivalents and need no reboot.
-- While the firmware ECO switch is on, the dGPU is absent from the PCI bus and
-  cardwire cannot change modes until it is switched back on. G-Helper detects
-  this and skips its own switching instead of showing an error.
+- The dGPU leaves the PCI bus as soon as the firmware ECO switch is applied.
+  Turning ECO off again does not bring it back until the next boot, and
+  cardwire cannot change modes until then. G-Helper notices the missing
+  display controller and skips cardwire instead of showing an error.
 - Battery health percentages come straight from the battery's own design
   capacity and may look low on replaced or aged cells. `cycle_count` is 0 on
   many ASUS batteries; that is a firmware limitation, not a bug.

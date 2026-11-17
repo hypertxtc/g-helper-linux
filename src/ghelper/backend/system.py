@@ -13,6 +13,7 @@ log = logging.getLogger(__name__)
 
 HWMON_ROOT = "/sys/class/hwmon"
 POWER_SUPPLY = "/sys/class/power_supply"
+PCI_DEVICES = "/sys/bus/pci/devices"
 CPU_FREQ = "/sys/devices/system/cpu/cpu0/cpufreq"
 
 
@@ -121,6 +122,49 @@ def ac_online() -> bool | None:
             if value is not None:
                 return bool(value)
     return None
+
+
+def count_display_controllers(classes: "list[str]") -> int:
+    """Count PCI display controllers from their ``class`` values."""
+    count = 0
+    for value in classes:
+        try:
+            code = int(str(value).strip(), 16)
+        except (TypeError, ValueError):
+            continue
+        if code >> 16 == 0x03:
+            count += 1
+    return count
+
+
+def display_controller_count() -> int | None:
+    try:
+        entries = os.listdir(PCI_DEVICES)
+    except OSError:
+        return None
+    classes = []
+    for entry in entries:
+        try:
+            with open(
+                os.path.join(PCI_DEVICES, entry, "class"), "r", encoding="utf-8"
+            ) as handle:
+                classes.append(handle.read())
+        except OSError:
+            continue
+    return count_display_controllers(classes)
+
+
+def dgpu_present() -> bool | None:
+    """Whether more than one display controller is on the PCI bus.
+
+    A firmware ECO switch removes the discrete GPU entirely, and the
+    ``DgpuDisable`` attribute can already read 0 while the GPU stays off until
+    the next boot.  Counting controllers is therefore the reliable check.
+    """
+    count = display_controller_count()
+    if not count:
+        return None
+    return count > 1
 
 
 def _ac_online() -> bool | None:

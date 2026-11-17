@@ -225,17 +225,16 @@ class SettingsWindow(Adw.Window):
         return True
 
     def launch_gpu_app(self, path: str, name: str) -> None:
-        if not cw.daemon_alive():
-            self.window.show_error(
-                ValueError("cardwire daemon is not running; start cardwired")
-            )
-            return
-        try:
+        def work() -> None:
+            if not cw.daemon_alive():
+                raise cw.CardwireError("cardwire daemon is not running; start cardwired")
             cw.spawn([path])
-        except cw.CardwireError as exc:
-            self.window.show_error(exc)
-            return
-        self.window.toast(f"Launching {name} with the dGPU")
+
+        self.window.run(
+            work,
+            done=lambda _r: self.window.toast(f"Launching {name} with the dGPU"),
+            error=self.window.show_error,
+        )
 
     def remove_gpu_app(self, path: str) -> None:
         apps = dict(self.settings.get("gpu_apps") or {})
