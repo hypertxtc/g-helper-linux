@@ -16,6 +16,14 @@ Requires:       libadwaita
 Requires:       asusctl
 Recommends:     cardwire
 
+BuildRequires:  python3
+BuildRequires:  python3-gobject
+BuildRequires:  python3-dbus
+BuildRequires:  gtk4
+BuildRequires:  libadwaita
+BuildRequires:  desktop-file-utils
+BuildRequires:  appstream
+
 %description
 A small GTK4/libadwaita front end for asusd and cardwire. Provides performance
 profiles, custom fan curves, power limits, GPU modes, firmware GPU switches,
@@ -30,6 +38,16 @@ laptops.
 %install
 make install DESTDIR=%{buildroot} PREFIX=/usr
 
+%check
+export PYTHONPATH="$PWD/src"
+%{__python3} -m unittest discover -s tests -v
+desktop-file-validate \
+    %{buildroot}%{_datadir}/applications/io.github.ghelperlinux.GHelper.desktop
+# Exit code 3 means warnings (currently the missing homepage URL) only.
+appstreamcli validate --no-net \
+    %{buildroot}%{_datadir}/metainfo/io.github.ghelperlinux.GHelper.metainfo.xml \
+    || test $? -eq 3
+
 %files
 %license LICENSE
 %doc README.md
@@ -37,6 +55,7 @@ make install DESTDIR=%{buildroot} PREFIX=/usr
 %{_prefix}/lib/ghelper-linux
 %{_datadir}/applications/io.github.ghelperlinux.GHelper.desktop
 %{_datadir}/metainfo/io.github.ghelperlinux.GHelper.metainfo.xml
+%{_mandir}/man1/ghelper-linux.1*
 %{_datadir}/icons/hicolor/scalable/apps/io.github.ghelperlinux.GHelper.svg
 %{_datadir}/icons/hicolor/128x128/apps/io.github.ghelperlinux.GHelper.png
 %{_prefix}/lib/systemd/user/ghelper-automation.service

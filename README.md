@@ -114,6 +114,9 @@ Only one copy runs at a time. A second launch forwards its `--page` or
 `--minimized` option to the running window and exits immediately, so tray
 icons, telemetry and profile polling never duplicate.
 
+A man page is installed alongside the binary: `man ghelper-linux` lists every
+option, the config files and the hotkey defaults.
+
 ### One-shot actions
 
 The same binary can change a setting and exit, which makes desktop hotkeys

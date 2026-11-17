@@ -43,6 +43,7 @@ install: $(APPID).png
 	install -Dm644 data/$(APPID).desktop $(SHAREDIR)/applications/$(APPID).desktop
 	install -Dm644 data/$(APPID).metainfo.xml \
 		$(METAINFODIR)/$(APPID).metainfo.xml
+	install -Dm644 docs/$(NAME).1 $(SHAREDIR)/man/man1/$(NAME).1
 	install -Dm644 src/ghelper/data/$(APPID).svg \
 		$(SHAREDIR)/icons/hicolor/scalable/apps/$(APPID).svg
 	install -Dm644 src/ghelper/data/$(APPID).png \
@@ -62,6 +63,7 @@ uninstall:
 	rm -f $(BINDIR)/ghelper-linux
 	rm -f $(SHAREDIR)/applications/$(APPID).desktop
 	rm -f $(METAINFODIR)/$(APPID).metainfo.xml
+	rm -f $(SHAREDIR)/man/man1/$(NAME).1
 	rm -f $(SHAREDIR)/icons/hicolor/scalable/apps/$(APPID).svg
 	rm -f $(SHAREDIR)/icons/hicolor/128x128/apps/$(APPID).png
 	rm -f $(UNITDIR)/ghelper-automation.service

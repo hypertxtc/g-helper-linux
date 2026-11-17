@@ -25,6 +25,7 @@ chmod 755 "$BINDIR/ghelper-linux"
 
 install -Dm644 "$HERE/data/$APPID.desktop" "$SHAREDIR/applications/$APPID.desktop"
 install -Dm644 "$HERE/data/$APPID.metainfo.xml" "$SHAREDIR/metainfo/$APPID.metainfo.xml"
+install -Dm644 "$HERE/docs/ghelper-linux.1" "$SHAREDIR/man/man1/ghelper-linux.1"
 install -Dm644 "$HERE/src/ghelper/data/$APPID.svg" \
     "$SHAREDIR/icons/hicolor/scalable/apps/$APPID.svg"
 install -Dm644 "$HERE/src/ghelper/data/$APPID.png" \

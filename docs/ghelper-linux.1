@@ -1,0 +1,136 @@
+.TH GHELPER-LINUX 1 "" "g-helper-linux" "User Commands"
+.SH NAME
+ghelper-linux \- performance, fan, GPU and battery control for ASUS laptops
+.SH SYNOPSIS
+.B ghelper-linux
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B g-helper-linux
+is a compact GTK4/libadwaita control centre for ASUS laptops, modelled on
+G-Helper for Windows.  It drives
+.BR asusd " (asusctl)"
+for performance profiles, fan curves, power limits, keyboard lighting and
+battery limits, and
+.B cardwire
+for runtime GPU blocking.
+.PP
+Without arguments the main window opens next to the KDE panel.  Only one
+instance runs at a time: a second launch forwards its window options to the
+running instance and exits.
+.PP
+The same binary also performs one-shot changes and can run the optional
+power-source automation loop.
+.SH OPTIONS
+.SS Window
+.TP
+.B \-\-page \fIPAGE\fR
+Open a specific window:
+.IR main ,
+.IR fans ,
+.I settings
+or
+.IR hotkeys .
+.TP
+.B \-\-minimized
+Start hidden in the tray.
+.TP
+.B \-\-check
+Print a JSON diagnostics report (services, firmware attributes, sensors,
+hotkeys, battery) and exit.  Useful in bug reports.
+.TP
+.B \-\-learn\-fn
+Print ASUS hotkey key codes until interrupted, one line per key press.
+.TP
+.B \-\-debug
+Enable verbose logging.
+.TP
+.B \-\-version
+Print the version and exit.
+.SS One-shot actions
+These change a setting and exit.  They do not need a running window.
+.TP
+.B \-\-profile \fIquiet\fR|\fIbalanced\fR|\fIperformance\fR|\fIcustom\fR
+Switch the platform profile.
+.TP
+.B \-\-gpu\-mode \fIintegrated\fR|\fIhybrid\fR|\fIsmart\fR|\fImanual\fR
+Set the cardwire GPU mode.
+.TP
+.B \-\-charge\-limit \fIPERCENT\fR
+Set the battery charge limit (20\-100).
+.TP
+.B \-\-refresh\-rate \fIHZ\fR|\fImax\fR
+Set the panel refresh rate for the current resolution (KDE).
+.SS Automation daemon
+.TP
+.B \-\-daemon
+Run the power-source automation loop in the foreground.
+.TP
+.B \-\-once
+Run a single automation step and exit.
+.TP
+.B \-\-dry\-run
+Report what the automation would change without applying it.
+.TP
+.B \-\-init\-config
+Write the default automation configuration file.
+.SH FILES
+.TP
+.I ~/.config/ghelper-linux/ui.json
+Window geometry, preferences, hotkey mappings and the dGPU app list.
+.TP
+.I ~/.config/ghelper-linux/fan-curves.json
+Named fan-curve presets created from the Fans + Power window.
+.TP
+.I ~/.config/ghelper-linux/automation.json
+Configuration for the optional automation daemon.
+.SH EXAMPLES
+Switch to Silent mode from a script or desktop shortcut:
+.PP
+.RS 4
+.EX
+ghelper-linux \-\-profile quiet
+.EE
+.RE
+.PP
+Show the backend report while troubleshooting:
+.PP
+.RS 4
+.EX
+ghelper-linux \-\-check | jq .
+.EE
+.RE
+.PP
+Find out what the ROG key sends:
+.PP
+.RS 4
+.EX
+ghelper-linux \-\-learn\-fn
+.EE
+.RE
+.SH HOTKEYS
+ASUS hotkeys are read passively from
+.IR /dev/input/event* ;
+the devices are never grabbed, so every key keeps its normal function.
+Reading requires the udev rule installed with
+.BR "make install" .
+Map keys in
+.B Settings \(-> Hotkeys
+or with
+.BR "\-\-page hotkeys" .
+.PP
+On the Zephyrus G14 (GA402RK) the ROG/Armoury key reports
+.BR KEY_PROG1 ;
+other models may report
+.BR KEY_PROG3 .
+.SH SEE ALSO
+.BR asusd (8),
+.BR cardwire (1)
+.PP
+https://gitlab.com/asus-linux/asusctl
+.br
+https://github.com/OpenGamingCollective/cardwire
+.br
+https://github.com/seerge/g-helper
+.SH BUGS
+Report issues with the output of
+.BR "ghelper-linux \-\-check" .
