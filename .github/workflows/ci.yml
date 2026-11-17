@@ -19,7 +19,7 @@ jobs:
           dnf install -y curl git make tar rpm-build python3 python3-dbus
           python3-gobject gtk4 libadwaita appstream desktop-file-utils
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install ruff
         run: |
