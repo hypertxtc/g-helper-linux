@@ -124,9 +124,11 @@ class Application(Adw.Application):
             self.tray = Tray(
                 icon_path=DATA_DIR / f"{APP_ID}.png",
                 profile=window.current_profile,
+                gpu_state=window.gpu_quick_state(),
                 on_show=self.show_window,
                 on_quit=self.quit,
                 on_profile=window.apply_profile,
+                on_gpu=window.apply_gpu_mode,
             )
             window.attach_tray(self.tray)
         except Exception as exc:  # noqa: BLE001 - tray is optional

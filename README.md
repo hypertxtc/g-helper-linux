@@ -35,7 +35,7 @@ System Control Interface on Windows.
 | Fn / ROG key mappings | evdev (passive read) | Map keys in Settings → Hotkeys; needs the bundled udev rule |
 | Opens next to the taskbar | KWin scripting (Plasma) | Uses the work area, so top/bottom/left/right panels all work |
 | Live temperatures and fan percentages | sysfs / `/proc` | dGPU asleep is reported honestly |
-| Tray icon and quick profile switch | StatusNotifierItem + dbusmenu | Live tooltip; KDE Plasma, GNOME needs an extension |
+| Tray icon, profile and GPU quick switch | StatusNotifierItem + dbusmenu | Silent/Balanced/Turbo and Eco/Standard/Smart/Optimized from the menu; live tooltip; KDE Plasma, GNOME needs an extension |
 | Single-instance window routing | GApplication command line | `--page`/`--minimized` reach the running window |
 | Window geometry and start-hidden | `~/.config/ghelper-linux/ui.json` | Size, maximised state and tray startup |
 | Background automation | optional user service | cardwire GPU mode + refresh rate (opt-in) |

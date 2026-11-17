@@ -75,6 +75,7 @@ class MainView(Gtk.Box):
         self._rates: list[float] = []
         self._last_ac: bool | None = None
         self._cw_auto: bool | None = None
+        self._gpu_quick: str | None = None
         self._keyboard_built = False
 
         self.set_margin_top(10)
@@ -325,6 +326,7 @@ class MainView(Gtk.Box):
             mux_value=mux_value,
             mux_queued=mux_queued,
         )
+        self._gpu_quick = gpu_policy.tray_mode(state.selected, data.get("cw_current"))
         self.gpu_section.set_title(state.title)
         for mode, button in self._gpu_buttons.items():
             button.set_selected(mode == state.selected)
@@ -540,6 +542,15 @@ class MainView(Gtk.Box):
         self._gpu_auto = bool(enabled)
         self.settings.set("gpu_auto", bool(enabled))
 
+    def gpu_quick_state(self) -> str | None:
+        """The tray's radio state, from the last refresh."""
+        return self._gpu_quick
+
+    def set_gpu_mode(self, mode: str) -> None:
+        """Change modes from outside the window, e.g. the tray menu."""
+        if mode in gpu_policy.TRAY_MODES:
+            self._on_gpu_clicked(None, mode)
+
     def _on_gpu_clicked(self, _button: Gtk.Button, mode: str) -> None:
         if mode == "optimized":
             self.set_gpu_auto(True)
@@ -576,6 +587,8 @@ class MainView(Gtk.Box):
             self._apply_gpu_mode("integrated", "Eco")
         elif mode == "standard":
             self._apply_gpu_mode("hybrid", "Standard")
+        elif mode == "smart":
+            self._apply_gpu_mode(gpu_policy.SMART_MODE, "Smart")
         elif mode == "ultimate":
             self._confirm_ultimate()
 

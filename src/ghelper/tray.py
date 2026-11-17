@@ -39,11 +39,23 @@ ITEM_BALANCED = 4
 ITEM_PERFORMANCE = 5
 ITEM_SEP2 = 6
 ITEM_QUIT = 7
+ITEM_ECO = 8
+ITEM_STANDARD = 9
+ITEM_SMART = 10
+ITEM_OPTIMIZED = 11
+ITEM_SEP3 = 12
 
 PROFILE_BY_ITEM = {
     ITEM_QUIET: asusd_mod.QUIET,
     ITEM_BALANCED: asusd_mod.BALANCED,
     ITEM_PERFORMANCE: asusd_mod.PERFORMANCE,
+}
+
+GPU_BY_ITEM = {
+    ITEM_ECO: "eco",
+    ITEM_STANDARD: "standard",
+    ITEM_SMART: "smart",
+    ITEM_OPTIMIZED: "optimized",
 }
 
 
@@ -182,6 +194,7 @@ class _TrayMenu(dbus.service.Object):
 
     def _layout(self) -> tuple:
         current = self._tray.profile
+        gpu = self._tray.gpu_state
         children = [
             self._item(ITEM_SHOW, self._text("Open G-Helper")),
             self._item(ITEM_SEP1, self._separator()),
@@ -194,6 +207,11 @@ class _TrayMenu(dbus.service.Object):
                 self._radio("Turbo", current == asusd_mod.PERFORMANCE),
             ),
             self._item(ITEM_SEP2, self._separator()),
+            self._item(ITEM_ECO, self._radio("Eco", gpu == "eco")),
+            self._item(ITEM_STANDARD, self._radio("Standard", gpu == "standard")),
+            self._item(ITEM_SMART, self._radio("Smart", gpu == "smart")),
+            self._item(ITEM_OPTIMIZED, self._radio("Optimized", gpu == "optimized")),
+            self._item(ITEM_SEP3, self._separator()),
             self._item(ITEM_QUIT, self._text("Quit")),
         ]
         children = [
@@ -239,6 +257,8 @@ class _TrayMenu(dbus.service.Object):
             self._tray.quit()
         elif ident in PROFILE_BY_ITEM:
             self._tray.select_profile(PROFILE_BY_ITEM[ident])
+        elif ident in GPU_BY_ITEM:
+            self._tray.select_gpu(GPU_BY_ITEM[ident])
 
     @dbus.service.method(MENU_IFACE, in_signature="i", out_signature="b")
     def AboutToShow(self, item_id: int) -> bool:
@@ -261,17 +281,21 @@ class Tray:
         *,
         icon_path: Path,
         profile: int,
+        gpu_state: str | None,
         on_show: Callable[[], None],
         on_quit: Callable[[], None],
         on_profile: Callable[[int], None],
+        on_gpu: Callable[[str], None],
     ) -> None:
         self.active = False
         self.profile = profile
+        self.gpu_state = gpu_state
         self.tooltip_title = "G-Helper"
         self.tooltip_body = ""
         self._on_show = on_show
         self._on_quit = on_quit
         self._on_profile = on_profile
+        self._on_gpu = on_gpu
 
         pixmap = _argb_pixmap(icon_path)
         self.icon_pixmaps = [pixmap] if pixmap is not None else []
@@ -296,6 +320,18 @@ class Tray:
 
     def select_profile(self, profile: int) -> None:
         self._on_profile(profile)
+
+    def select_gpu(self, mode: str) -> None:
+        self._on_gpu(mode)
+
+    def set_gpu_state(self, state: str | None) -> None:
+        if state == self.gpu_state:
+            return
+        self.gpu_state = state
+        try:
+            self._menu.LayoutUpdated(1, 0)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("tray GPU update failed: %s", exc)
 
     def set_profile(self, profile: int) -> None:
         if profile == self.profile:

@@ -160,6 +160,7 @@ class MainWindow(Adw.ApplicationWindow):
     def attach_tray(self, tray) -> None:
         self._tray = tray
         tray.set_profile(self._profile)
+        tray.set_gpu_state(self.main_view.gpu_quick_state())
         self._refresh_tray()
 
     # -- window state ----------------------------------------------------
@@ -192,6 +193,13 @@ class MainWindow(Adw.ApplicationWindow):
             snapshot.get("battery"),
         )
         self._tray.set_tooltip(line)
+        self._tray.set_gpu_state(self.main_view.gpu_quick_state())
+
+    def gpu_quick_state(self) -> str | None:
+        return self.main_view.gpu_quick_state()
+
+    def apply_gpu_mode(self, mode: str) -> None:
+        self.main_view.set_gpu_mode(mode)
 
     def _placement_args(self) -> tuple[str, str | None]:
         application = self.get_application()

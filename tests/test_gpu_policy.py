@@ -224,6 +224,25 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(self._select(current=None).selected, "standard")
 
 
+class TrayModeTests(unittest.TestCase):
+    def test_live_smart_beats_the_stored_preset(self) -> None:
+        self.assertEqual(gpu_policy.tray_mode("optimized", "smart"), "smart")
+
+    def test_manual_has_no_tray_radio(self) -> None:
+        self.assertIsNone(gpu_policy.tray_mode("standard", "manual"))
+
+    def test_presets_map_to_their_radio(self) -> None:
+        for mode in ("eco", "standard", "optimized"):
+            with self.subTest(mode=mode):
+                self.assertEqual(gpu_policy.tray_mode(mode, "hybrid"), mode)
+
+    def test_ultimate_is_not_a_tray_mode(self) -> None:
+        self.assertIsNone(gpu_policy.tray_mode("ultimate", "hybrid"))
+
+    def test_unknown_state_checks_nothing(self) -> None:
+        self.assertIsNone(gpu_policy.tray_mode(None, None))
+
+
 class ErrorTranslationTests(unittest.TestCase):
     ENOENT = "IO Error: No such file or directory (os error 2)"
 

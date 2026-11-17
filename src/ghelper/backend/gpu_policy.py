@@ -34,6 +34,9 @@ SMART_MODE = "smart"
 CUSTOM_MODES = frozenset({"smart", "manual"})
 CUSTOM_TITLES = {"smart": "Smart", "manual": "Manual"}
 
+# Modes offered as quick choices in the tray menu.
+TRAY_MODES = ("eco", "standard", "smart", "optimized")
+
 
 @dataclass(frozen=True)
 class GpuSelection:
@@ -109,6 +112,22 @@ def automation_should_skip(
 def is_custom_mode(current: str | None) -> bool:
     """True for cardwire modes the main window cannot represent as a button."""
     return (current or "").lower() in CUSTOM_MODES
+
+
+def tray_mode(selected: str | None, current: str | None) -> str | None:
+    """Which quick GPU radio the tray menu should highlight.
+
+    The live cardwire mode wins over the stored Optimized intent, and Ultimate
+    (a firmware state) has no tray equivalent.
+    """
+    mode = (current or "").lower()
+    if mode == SMART_MODE:
+        return SMART_MODE
+    if mode in CUSTOM_MODES:
+        return None
+    if selected in TRAY_MODES:
+        return selected
+    return None
 
 
 def selection(
