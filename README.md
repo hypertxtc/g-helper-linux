@@ -48,8 +48,25 @@ System Control Interface on Windows.
 - Python 3.10+, PyGObject, GTK 4 and libadwaita.
 - [cardwire](https://github.com/OpenGamingCollective/cardwire) + `cardwired`
   for GPU modes (optional but recommended).
-- KDE Plasma for refresh-rate switching; other desktops get the rest of the
-  app and a clear "not available" note.
+- KDE Plasma for refresh-rate switching and window placement; other desktops
+  get the rest of the app and a clear "not available" note.
+
+### Other desktops
+
+Everything except the two Plasma-specific features works on GNOME and wlroots
+compositors, because they go through `asusd`, `cardwire` and sysfs:
+
+| Feature | GNOME | wlroots (sway, Hyprland) |
+|---|---|---|
+| Profiles, fan curves, PPT, Aura, battery, boot sound | Yes | Yes |
+| GPU modes, Smart mode and per-app dGPU launch | Yes | Yes |
+| Fn / ROG hotkeys | Yes, with the bundled udev rule | Yes, with the bundled udev rule |
+| Refresh rate and Panel Overdrive row | Hidden/disabled: `kscreen-doctor` needs KWin | Same |
+| Window next to the panel | No: GNOME does not let apps position windows | No |
+| Tray icon | Needs the AppIndicator extension | Needs a StatusNotifier host (`waybar`, `swaybar` via `snixembed`) |
+
+`ghelper-linux --check` prints why the display backend is off, so a bug report
+from another desktop says whether it is a missing tool or a desktop mismatch.
 
 ### Fedora
 

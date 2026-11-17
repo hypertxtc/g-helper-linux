@@ -5,11 +5,16 @@
 Refresh-rate switching is desktop specific.  On KDE Plasma/Wayland we drive
 ``kscreen-doctor``; on anything else the page degrades to read-only instead of
 pretending to support it.
+
+``kscreen-doctor`` is a KWin client: on GNOME or a wlroots compositor it is
+either missing or fails against a desktop it cannot reach, so the desktop name
+gates the backend as well as the binary.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -26,8 +31,36 @@ class DisplayError(RuntimeError):
     pass
 
 
+def desktop_tokens() -> set[str]:
+    """Desktop names from the session environment, normalised to upper case."""
+    value = os.environ.get("XDG_CURRENT_DESKTOP") or os.environ.get(
+        "XDG_SESSION_DESKTOP", ""
+    )
+    return {token.strip().upper() for token in re.split(r"[:;]", value) if token.strip()}
+
+
+def is_kde() -> bool:
+    return "KDE" in desktop_tokens()
+
+
 def available() -> bool:
-    return shutil.which("kscreen-doctor") is not None
+    """Whether refresh-rate control can work here.
+
+    An unknown desktop (no ``XDG_CURRENT_DESKTOP``, e.g. started by hand) is
+    allowed through: the binary is then the only evidence we have, and the
+    probe fails honestly if the desktop is wrong.
+    """
+    if shutil.which("kscreen-doctor") is None:
+        return False
+    tokens = desktop_tokens()
+    return not tokens or "KDE" in tokens
+
+
+def unavailable_reason() -> str:
+    """Short, user-facing explanation for a disabled refresh row."""
+    if shutil.which("kscreen-doctor") is None:
+        return "Install kscreen-doctor to switch refresh rates"
+    return "Refresh-rate switching needs KDE Plasma"
 
 
 def parse_outputs(text: str) -> list[dict[str, Any]]:

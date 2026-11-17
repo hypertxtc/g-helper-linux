@@ -52,15 +52,18 @@ def _check() -> int:
     except Exception as exc:  # noqa: BLE001
         report["cardwire"] = {"available": cardwire.available(), "error": str(exc)}
 
-    try:
-        panel = display.primary_panel()
-        report["display"] = {
-            "available": display.available(),
-            "panel": panel["name"] if panel else None,
-            "refresh_rates": display.refresh_rates(panel) if panel else [],
-        }
-    except Exception as exc:  # noqa: BLE001
-        report["display"] = {"available": display.available(), "error": str(exc)}
+    report["display"] = {"available": display.available()}
+    if report["display"]["available"]:
+        try:
+            panel = display.primary_panel()
+            report["display"]["panel"] = panel["name"] if panel else None
+            report["display"]["refresh_rates"] = (
+                display.refresh_rates(panel) if panel else []
+            )
+        except Exception as exc:  # noqa: BLE001
+            report["display"]["error"] = str(exc)
+    else:
+        report["display"]["reason"] = display.unavailable_reason()
 
     report["sensors"] = Monitor().snapshot()
     report["hotkeys"] = hotkeys.probe()

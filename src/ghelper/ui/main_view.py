@@ -286,7 +286,7 @@ class MainView(Gtk.Box):
             except display.DisplayError as exc:
                 data["display_error"] = str(exc)
         else:
-            data["display_error"] = "kscreen-doctor not found (KDE only)"
+            data["display_error"] = display.unavailable_reason()
 
         try:
             if self.aura.available:
