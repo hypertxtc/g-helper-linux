@@ -73,6 +73,13 @@ Report what the automation would change without applying it.
 .TP
 .B \-\-init\-config
 Write the default automation configuration file.
+.PP
+GPU mode automation is off by default: cardwire's own
+.B battery_auto_switch
+already selects integrated mode on battery and the configured mode on AC.
+Enable it in
+.I automation.json
+only when that switch is turned off.
 .SH FILES
 .TP
 .I ~/.config/ghelper-linux/ui.json

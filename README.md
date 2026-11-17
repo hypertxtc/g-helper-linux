@@ -186,8 +186,15 @@ compositor feels like putting it.
 
 ### Power automation (optional)
 
-`make install` also installs `ghelper-automation.service`, a user service that
-turns unplugging into the G-Helper "Optimized" experience:
+asusd switches performance profiles on AC/battery changes, and cardwire's own
+`battery_auto_switch` drops the GPU to integrated mode on battery and restores
+your configured mode on AC. If that switch is on — check with
+`cardwire config battery-auto-switch` — the GPU side needs nothing else, and
+both the window and the service below leave it alone.
+
+`make install` also installs `ghelper-automation.service`, a user service for
+what neither daemon does: refresh-rate automation, plus GPU switching for
+cardwire setups where `battery_auto_switch` is disabled.
 
 ```bash
 ghelper-linux --init-config       # writes ~/.config/ghelper-linux/automation.json
@@ -197,7 +204,7 @@ systemctl --user enable --now ghelper-automation
 
 ```json
 {
-  "gpu_mode": true,
+  "gpu_mode": false,
   "gpu_on_battery": "integrated",
   "gpu_on_ac": "hybrid",
   "refresh_rate": false,
@@ -207,12 +214,15 @@ systemctl --user enable --now ghelper-automation
 }
 ```
 
-- `gpu_mode` uses cardwire and never overrides `smart`/`manual` modes.
-- `refresh_rate` is **off by default** because KWin may show a "keep these
-  settings?" dialog for mode changes. Set it to `true` if your desktop applies
-  them silently.
-- The main window's **Optimized** GPU and **Auto** screen buttons do the same
-  thing while the app is running; the service makes it survive without the GUI.
+- `gpu_mode` is **off by default** because cardwire already handles the GPU.
+  Turn it on only when `cardwire config battery-auto-switch` is `false`; it
+  never overrides `smart`/`manual` modes.
+- `refresh_rate` is also **off by default** because KWin may show a "keep
+  these settings?" dialog for mode changes. Set it to `true` if your desktop
+  applies them silently.
+- The main window's **Optimized** GPU button follows the same rule: it defers
+  to cardwire when `battery_auto_switch` is enabled, and switches modes itself
+  only when it is not.
 - The daemon logs to the journal: `journalctl --user -u ghelper-automation -f`.
 - Test without touching anything: `ghelper-linux --once --dry-run --debug`.
 - asusd still owns Quiet/Balanced/Performance automation; this service does

@@ -138,6 +138,37 @@ def launch_on(gpu_id: int | str, command: list[str]) -> None:
     _run("launch", "--gpu", str(gpu_id), "--", *command)
 
 
+def parse_battery_auto_switch(output: str) -> bool | None:
+    """Parse ``cardwire config battery-auto-switch`` output."""
+    for line in output.splitlines():
+        if ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        if key.strip().lower() != "batteryautoswitch":
+            continue
+        text = value.strip().lower()
+        if text in ("true", "1", "on", "enabled"):
+            return True
+        if text in ("false", "0", "off", "disabled"):
+            return False
+    return None
+
+
+def battery_auto_switch() -> bool | None:
+    """Whether cardwire switches GPU modes on AC/battery by itself.
+
+    ``None`` means cardwire is missing or did not answer, so callers can fall
+    back to their own automation instead of assuming either way.
+    """
+    if not available():
+        return None
+    try:
+        output = _run("config", "battery-auto-switch", timeout=4)
+    except CardwireError:
+        return None
+    return parse_battery_auto_switch(output)
+
+
 #: Launcher processes we started; reaped by :func:`reap`.
 _spawned: list[subprocess.Popen] = []
 

@@ -78,5 +78,25 @@ class ReapTests(unittest.TestCase):
         self.assertEqual(cardwire._spawned, [running])
 
 
+class BatterySwitchTests(unittest.TestCase):
+    def test_parses_boolean(self) -> None:
+        self.assertTrue(cardwire.parse_battery_auto_switch("BatteryAutoSwitch: true"))
+        self.assertFalse(cardwire.parse_battery_auto_switch("BatteryAutoSwitch: false"))
+        self.assertTrue(cardwire.parse_battery_auto_switch("batteryautoswitch: on"))
+
+    def test_unknown_shapes(self) -> None:
+        self.assertIsNone(cardwire.parse_battery_auto_switch(""))
+        self.assertIsNone(cardwire.parse_battery_auto_switch("Current Mode: Hybrid"))
+        self.assertIsNone(cardwire.parse_battery_auto_switch("BatteryAutoSwitch: maybe"))
+
+    def test_query_failure_is_unknown(self) -> None:
+        with mock.patch.object(cardwire, "available", return_value=True), mock.patch.object(
+            cardwire, "_run", side_effect=cardwire.CardwireError("nope")
+        ):
+            self.assertIsNone(cardwire.battery_auto_switch())
+        with mock.patch.object(cardwire, "available", return_value=False):
+            self.assertIsNone(cardwire.battery_auto_switch())
+
+
 if __name__ == "__main__":
     unittest.main()

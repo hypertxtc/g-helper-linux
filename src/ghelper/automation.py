@@ -2,15 +2,22 @@
 
 """Optional power-source automation daemon.
 
-asusd already switches performance profiles on AC/battery changes.  This
-small user service adds the two things it does not do:
+asusd already switches performance profiles on AC/battery changes, and
+cardwire's own ``battery_auto_switch`` drops the GPU to integrated mode on
+battery and restores the configured mode on AC.  This small user service adds
+what neither does:
 
 * refresh-rate automation (KDE, via kscreen-doctor)
-* cardwire GPU-mode automation (integrated on battery, hybrid on AC)
+* optional GPU-mode automation for cardwire setups that disabled its own switch
 
-It is opt-in: install the unit, edit ``~/.config/ghelper-linux/automation.json``
-and enable ``ghelper-automation.service``.  Manual cardwire modes (smart /
-manual) are respected and never overridden.
+GPU mode is therefore off by default; turn it on only when cardwire's
+``battery_auto_switch`` is disabled.  The main window also defers to cardwire
+when that switch is on.
+
+The service is opt-in: install the unit, edit
+``~/.config/ghelper-linux/automation.json`` and enable
+``ghelper-automation.service``.  Manual cardwire modes (smart / manual) are
+respected and never overridden.
 """
 
 from __future__ import annotations
@@ -29,8 +36,9 @@ from .backend.system import ac_online
 log = logging.getLogger(__name__)
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    # This is the G-Helper "Optimized" behaviour and is safe without reboots.
-    "gpu_mode": True,
+    # cardwire's own battery_auto_switch does this already; enable only when
+    # that is disabled.
+    "gpu_mode": False,
     "gpu_on_battery": "integrated",
     "gpu_on_ac": "hybrid",
     # Off by default: some desktops (notably KWin) ask for confirmation when

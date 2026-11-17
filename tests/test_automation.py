@@ -17,7 +17,7 @@ from ghelper import automation  # noqa: E402
 class ConfigTests(unittest.TestCase):
     def test_defaults(self) -> None:
         config = automation.merge_config(None)
-        self.assertTrue(config["gpu_mode"])
+        self.assertFalse(config["gpu_mode"])
         self.assertFalse(config["refresh_rate"])
         self.assertEqual(automation.gpu_target(config, False), "integrated")
         self.assertEqual(automation.gpu_target(config, True), "hybrid")
@@ -58,7 +58,7 @@ class ConfigTests(unittest.TestCase):
 
 class ApplyTests(unittest.TestCase):
     def test_dry_run_battery_switch(self) -> None:
-        config = automation.merge_config({"refresh_rate": False})
+        config = automation.merge_config({"gpu_mode": True, "refresh_rate": False})
         with (
             mock.patch.object(automation.cardwire, "available", return_value=True),
             mock.patch.object(
@@ -71,7 +71,7 @@ class ApplyTests(unittest.TestCase):
         set_mode.assert_not_called()
 
     def test_manual_cardwire_mode_is_respected(self) -> None:
-        config = automation.merge_config({"refresh_rate": False})
+        config = automation.merge_config({"gpu_mode": True, "refresh_rate": False})
         daemon = automation.Automation(config)
         with (
             mock.patch.object(automation.cardwire, "available", return_value=True),
@@ -87,7 +87,7 @@ class ApplyTests(unittest.TestCase):
         self.assertTrue(daemon._gpu_manual)
 
     def test_no_change_when_already_on_target(self) -> None:
-        config = automation.merge_config({"refresh_rate": False})
+        config = automation.merge_config({"gpu_mode": True, "refresh_rate": False})
         with (
             mock.patch.object(automation.cardwire, "available", return_value=True),
             mock.patch.object(

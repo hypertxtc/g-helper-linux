@@ -456,28 +456,30 @@ class MainView(Gtk.Box):
             return
         if self._last_ac is None:
             self._last_ac = ac
-            if self._gpu_auto and cw.available():
-                target = "hybrid" if ac else "integrated"
-                self.window.run(
-                    lambda: cw.set_mode(target),
-                    done=lambda _r: self.refresh(),
-                    error=self.window.show_error,
-                )
+            self._apply_gpu_for_power(ac)
             if self._screen_auto:
                 self._apply_auto_refresh(ac)
             return
         if ac == self._last_ac:
             return
         self._last_ac = ac
-        if self._gpu_auto and cw.available():
-            target = "hybrid" if ac else "integrated"
-            self.window.run(
-                lambda: cw.set_mode(target),
-                done=lambda _r: self.refresh(),
-                error=self.window.show_error,
-            )
+        self._apply_gpu_for_power(ac)
         if self._screen_auto:
             self._apply_auto_refresh(ac)
+
+    def _apply_gpu_for_power(self, ac: bool) -> None:
+        if not (self._gpu_auto and cw.available()):
+            return
+        # cardwire's own battery_auto_switch already does integrated-on-battery
+        # and back to the configured mode on AC.  Do not fight it.
+        if cw.battery_auto_switch():
+            return
+        target = "hybrid" if ac else "integrated"
+        self.window.run(
+            lambda: cw.set_mode(target),
+            done=lambda _r: self.refresh(),
+            error=self.window.show_error,
+        )
 
     # -- profile actions --------------------------------------------------
     def set_profile(self, profile: int) -> None:
