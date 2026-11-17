@@ -1,0 +1,371 @@
+/* G-Helper-inspired theme (Windows 11 light/dark, compact, flat borders). */
+
+window.gh-window,
+window.gh-window.background {
+  background-color: #f0f0f0;
+  color: #000000;
+  font-family: "Noto Sans", "Segoe UI", "Cantarell", sans-serif;
+  font-size: 9pt;
+}
+
+window.gh-window.dark,
+window.gh-window.dark.background {
+  background-color: #1c1c1c;
+  color: #f0f0f0;
+}
+
+.gh-scroll,
+.gh-scroll viewport {
+  background: transparent;
+}
+
+.gh-root {
+  background: transparent;
+}
+
+headerbar.gh-header {
+  background: #f0f0f0;
+  border: none;
+  box-shadow: none;
+  min-height: 34px;
+  padding: 0 6px;
+}
+
+window.dark headerbar.gh-header {
+  background: #1c1c1c;
+}
+
+.gh-app-title {
+  font-weight: 600;
+  font-size: 9pt;
+}
+
+.gh-section {
+  margin: 0;
+}
+
+.gh-section-head {
+  min-height: 22px;
+}
+
+.gh-section-icon {
+  color: #1f1f1f;
+}
+
+window.dark .gh-section-icon {
+  color: #ededed;
+}
+
+.gh-section-title {
+  font-weight: 700;
+  font-size: 9pt;
+}
+
+.gh-live {
+  color: #6d6d6d;
+  font-size: 9pt;
+}
+
+window.dark .gh-live {
+  color: #a8a8a8;
+}
+
+.gh-mode-button {
+  background: #ffffff;
+  border: 1px solid #dcdcdc;
+  border-radius: 3px;
+  color: #000000;
+  padding: 6px 3px;
+  min-height: 60px;
+  box-shadow: none;
+  outline: none;
+}
+
+window.dark .gh-mode-button {
+  background: #2e2e2e;
+  border-color: #373737;
+  color: #f0f0f0;
+}
+
+.gh-mode-button:hover {
+  background: #f8f8f8;
+}
+
+window.dark .gh-mode-button:hover {
+  background: #3a3a3a;
+}
+
+.gh-mode-button:active {
+  background: #eeeeee;
+}
+
+window.dark .gh-mode-button:active {
+  background: #262626;
+}
+
+.gh-mode-button.secondary {
+  background: #e6e6e6;
+}
+
+window.dark .gh-mode-button.secondary {
+  background: #242424;
+}
+
+.gh-mode-button.selected {
+  border-color: transparent;
+  box-shadow: inset 0 0 0 2px #3aaeef;
+}
+
+.gh-mode-button.selected.accent-green {
+  box-shadow: inset 0 0 0 2px #06b48a;
+}
+
+.gh-mode-button.selected.accent-blue {
+  box-shadow: inset 0 0 0 2px #3aaeef;
+}
+
+.gh-mode-button.selected.accent-red {
+  box-shadow: inset 0 0 0 2px #ff2020;
+}
+
+.gh-mode-button.selected.accent-orange {
+  box-shadow: inset 0 0 0 2px #ff8000;
+}
+
+.gh-mode-icon {
+  color: #1f1f1f;
+}
+
+window.dark .gh-mode-icon {
+  color: #ededed;
+}
+
+.gh-mode-label {
+  font-size: 9pt;
+}
+
+.gh-button {
+  background: #ffffff;
+  border: 1px solid #dcdcdc;
+  border-radius: 3px;
+  color: #000000;
+  padding: 3px 10px;
+  min-height: 28px;
+  box-shadow: none;
+  outline: none;
+}
+
+window.dark .gh-button {
+  background: #2e2e2e;
+  border-color: #373737;
+  color: #f0f0f0;
+}
+
+.gh-button:hover {
+  background: #f8f8f8;
+}
+
+window.dark .gh-button:hover {
+  background: #3a3a3a;
+}
+
+.gh-button.secondary {
+  background: #e6e6e6;
+}
+
+window.dark .gh-button.secondary {
+  background: #242424;
+}
+
+.gh-button.selected {
+  box-shadow: inset 0 0 0 2px #3aaeef;
+  border-color: transparent;
+}
+
+.gh-button.small {
+  min-height: 20px;
+  padding: 1px 8px;
+  font-size: 8pt;
+}
+
+popover.gh-popover > contents {
+  background-color: #ffffff;
+  border: 1px solid #dcdcdc;
+  border-radius: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  padding: 0;
+}
+
+window.dark popover.gh-popover > contents {
+  background-color: #2b2b2b;
+  border-color: #3a3a3a;
+}
+
+.gh-popover-item {
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  box-shadow: none;
+  padding: 4px 8px;
+  min-height: 24px;
+  font-size: 9pt;
+  font-weight: 400;
+  color: #000000;
+}
+
+window.dark .gh-popover-item {
+  color: #f0f0f0;
+}
+
+.gh-popover-item:hover {
+  background: #e8f4fd;
+}
+
+window.dark .gh-popover-item:hover {
+  background: #3a3a3a;
+}
+
+.gh-flat-icon {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0 6px;
+  min-height: 22px;
+  min-width: 22px;
+  color: #6d6d6d;
+}
+
+.gh-flat-icon:hover {
+  color: #ff2020;
+  background: transparent;
+}
+
+.gh-link-ok {
+  color: #3aaeef;
+  text-decoration: underline;
+}
+
+.gh-link-error {
+  color: #ff2020;
+}
+
+.gh-scale trough {
+  min-height: 4px;
+  background: #cfcfcf;
+  border-radius: 2px;
+}
+
+window.dark .gh-scale trough {
+  background: #3a3a3a;
+}
+
+.gh-scale highlight {
+  background: transparent;
+  border-radius: 2px;
+}
+
+.gh-scale slider {
+  background: #3aaeef;
+  border: none;
+  border-radius: 2px;
+  min-width: 16px;
+  min-height: 22px;
+}
+
+window.dark .gh-scale slider {
+  border-color: #2e2e2e;
+}
+
+.gh-scale marks {
+  color: #8a8a8a;
+}
+
+.gh-scale marks {
+  color: #8a8a8a;
+}
+
+.gh-scale.vertical trough {
+  min-width: 4px;
+  min-height: 0;
+}
+
+window.dark .gh-scale marks {
+  color: #909090;
+}
+
+.gh-combo,
+.gh-combo button {
+  background: #ffffff;
+  border: 1px solid #dcdcdc;
+  border-radius: 3px;
+  min-height: 28px;
+  color: #000000;
+}
+
+window.dark .gh-combo,
+window.dark .gh-combo button {
+  background: #2e2e2e;
+  border-color: #373737;
+  color: #f0f0f0;
+}
+
+.gh-combo button:hover,
+.gh-combo:hover {
+  background: #f8f8f8;
+}
+
+window.dark .gh-combo button:hover,
+window.dark .gh-combo:hover {
+  background: #3a3a3a;
+}
+
+.gh-dropdown > button {
+  background: #ffffff;
+  border: 1px solid #dcdcdc;
+  border-radius: 3px;
+  min-height: 28px;
+  color: #000000;
+  padding: 2px 8px;
+}
+
+window.dark .gh-dropdown > button {
+  background: #2e2e2e;
+  border-color: #373737;
+  color: #f0f0f0;
+}
+
+.gh-color-button {
+  min-height: 28px;
+  min-width: 34px;
+  border-radius: 3px;
+}
+
+.gh-footer-label {
+  color: #a0a0a0;
+  font-size: 8pt;
+}
+
+window.dark .gh-footer-label {
+  color: #9a9a9a;
+}
+
+.gh-check {
+  font-size: 9pt;
+}
+
+.gh-value {
+  font-size: 9pt;
+}
+
+.gh-big-value {
+  font-size: 11pt;
+  font-weight: 600;
+}
+
+.gh-chart-title {
+  font-size: 9pt;
+}
+
+.gh-status {
+  font-size: 9pt;
+}

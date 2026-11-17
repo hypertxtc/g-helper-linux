@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=g-helper-linux
+GenericName=ASUS laptop control
+Comment=Performance profiles, fan curves, GPU modes and battery care for ASUS laptops
+Exec=ghelper-linux
+Icon=io.github.ghelperlinux.GHelper
+Terminal=false
+Categories=System;Settings;HardwareSettings;
+Keywords=asus;rog;tuf;zephyrus;fan;battery;gpu;asusctl;cardwire;
+StartupNotify=true
