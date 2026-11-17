@@ -325,13 +325,13 @@ validation and an RPM build in a Fedora container on every push.
 
 **Near term**
 
-- AppStream metadata, SPDX headers, CI (ruff, tests, RPM build)
-- GNOME / wlroots refresh-rate backends
+- GNOME / wlroots refresh-rate backends and window placement
+- Anime Matrix and Slash lighting (keyboard Aura lighting is already supported)
 
 **Next milestone**
 
-- RGB (Aura), Anime Matrix and Slash lighting
-- Non-KDE display adapters and window placement (GNOME/wlroots)
+- Localisation (gettext)
+- Release packaging outside Fedora (Arch AUR, Debian)
 
 **Later / out of scope for now**
 

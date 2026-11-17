@@ -26,14 +26,19 @@ check:
 test:
 	PYTHONPATH=src python3 -m unittest discover -s tests -v
 
-icon:
-	convert -background none -density 512 src/ghelper/data/$(APPID).svg \
-		-resize 128x128 src/ghelper/data/$(APPID).png
+ICONPNG := src/ghelper/data/$(APPID).png
+ICONSVG := $(ICONPNG:.png=.svg)
 
-$(APPID).png:
+icon:
+	convert -background none -density 512 -strip $(ICONSVG) \
+		-resize 128x128 $(ICONPNG)
+
+# Listed explicitly so a plain "make install" reuses the committed icon
+# instead of rewriting it (and dirtying the tree) on every build.
+$(ICONPNG): $(ICONSVG)
 	$(MAKE) icon
 
-install: $(APPID).png
+install: $(ICONPNG)
 	install -d $(LIBDIR)
 	rm -rf $(LIBDIR)/ghelper
 	cp -r src/ghelper $(LIBDIR)/ghelper
