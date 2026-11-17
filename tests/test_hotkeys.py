@@ -64,10 +64,16 @@ class NamingTests(unittest.TestCase):
         self.assertEqual(hotkeys.key_name(248), "KEY_MICMUTE")
 
     def test_labels_and_defaults(self) -> None:
-        self.assertIn("ROG", hotkeys.key_label(202))
-        self.assertEqual(hotkeys.DEFAULT_FN_ACTIONS, {"202": "toggle_window"})
+        self.assertIn("ROG", hotkeys.key_label(148))
+        self.assertNotIn("Armoury", hotkeys.key_label(202))
+        self.assertEqual(hotkeys.DEFAULT_FN_ACTIONS, {"148": "toggle_window"})
         self.assertIn("toggle_window", hotkeys.ACTIONS)
         self.assertEqual(hotkeys.ACTION_ORDER[-1], "ignore")
+
+    def test_settings_default_matches(self) -> None:
+        from ghelper.backend import settings
+
+        self.assertEqual(settings.DEFAULTS["fn_actions"], hotkeys.DEFAULT_FN_ACTIONS)
 
     def test_unknown_code_is_hex(self) -> None:
         self.assertEqual(hotkeys.key_name(999), "KEY_0x3e7")

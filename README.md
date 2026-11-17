@@ -157,10 +157,16 @@ every key still does whatever it normally does. Reading needs the udev rule in
 udev. If you installed by hand, copy it to `/usr/lib/udev/rules.d/` and run
 `sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=input`.
 
-The ROG / Armoury Crate key (`KEY_PROG3`) is mapped to **Open / hide G-Helper**
-by default. Map any other key in **Settings → Hotkeys → Configure hotkeys…**:
-press the key, choose an action, done. Mappings are stored as `fn_actions` in
+The ROG / Armoury Crate key on the GA402RK reports **`KEY_PROG1`** (148) on the
+N-KEY keyboard and is mapped to **Open / hide G-Helper** by default. Some other
+models send `KEY_PROG3`; the generated default follows the hardware it was
+verified on, so if your ROG key does nothing, run `--learn-fn`, watch the code,
+and map it in **Settings → Hotkeys → Configure hotkeys…**: press the key,
+choose an action, done. Mappings are stored as `fn_actions` in
 `~/.config/ghelper-linux/ui.json`, and the same window can clear them all.
+
+Older builds assumed the ROG key was `KEY_PROG3`; the settings file is migrated
+automatically on first start, so you do not need to delete `ui.json`.
 
 To find out what a key sends:
 

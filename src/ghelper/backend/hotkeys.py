@@ -69,7 +69,8 @@ KEY_NAMES = {
 }
 
 KEY_LABELS = {
-    202: "ROG (Armoury Crate) key",
+    148: "ROG (Armoury Crate) key",
+    202: "PROG3 key (model dependent)",
     203: "Aura (keyboard) key",
     212: "Camera key",
     215: "Mail key",
@@ -98,8 +99,10 @@ ACTIONS = {
 
 ACTION_ORDER = tuple(ACTIONS)
 
-#: KEY_PROG3 is the Armoury Crate / ROG key on ASUS laptops.
-DEFAULT_FN_ACTIONS = {"202": "toggle_window"}
+#: The ROG / Armoury Crate key reports KEY_PROG1 on the GA402RK's N-KEY
+#: keyboard (verified with --learn-fn).  Some models send KEY_PROG3 instead;
+#: map that in Settings if yours does.
+DEFAULT_FN_ACTIONS = {"148": "toggle_window"}
 
 HINT = (
     "Fn/hotkey devices are not readable. Install the udev rule with "

@@ -80,14 +80,53 @@ class SettingsTests(unittest.TestCase):
 
     def test_hotkey_mapping_round_trip(self) -> None:
         store = settings_mod.Settings()
-        self.assertEqual(store.get("fn_actions"), {"202": "toggle_window"})
-        store.set("fn_actions", {202: "profile_next", 203: "keyboard_toggle"})
+        self.assertEqual(store.get("fn_actions"), {"148": "toggle_window"})
+        store.set("fn_actions", {148: "profile_next", 203: "keyboard_toggle"})
         self.assertEqual(
             settings_mod.Settings().get("fn_actions"),
-            {"202": "profile_next", "203": "keyboard_toggle"},
+            {"148": "profile_next", "203": "keyboard_toggle"},
         )
         store.set("fn_actions", "not a mapping")
-        self.assertEqual(store.get("fn_actions"), {"202": "toggle_window"})
+        self.assertEqual(store.get("fn_actions"), {"148": "toggle_window"})
+
+    def _write(self, data: dict) -> None:
+        settings_mod.path().parent.mkdir(parents=True, exist_ok=True)
+        settings_mod.path().write_text(json.dumps(data), encoding="utf-8")
+
+    def test_v1_rog_mapping_is_migrated(self) -> None:
+        self._write({"fn_actions": {"202": "toggle_window"}, "window_width": 500})
+        store = settings_mod.Settings()
+        self.assertEqual(store.get("fn_actions"), {"148": "toggle_window"})
+        self.assertEqual(store.get("window_width"), 500)
+        raw = json.loads(settings_mod.path().read_text(encoding="utf-8"))
+        self.assertEqual(raw["settings_version"], settings_mod.SETTINGS_VERSION)
+
+    def test_migration_moves_202_and_keeps_other_keys(self) -> None:
+        self._write(
+            {"fn_actions": {"202": "toggle_window", "248": "keyboard_toggle"}}
+        )
+        self.assertEqual(
+            settings_mod.Settings().get("fn_actions"),
+            {"148": "toggle_window", "248": "keyboard_toggle"},
+        )
+
+    def test_migration_keeps_custom_use_of_202(self) -> None:
+        mappings = {"202": "profile_next", "248": "mic"}
+        self._write({"fn_actions": mappings})
+        store = settings_mod.Settings()
+        self.assertEqual(store.get("fn_actions"), mappings)
+        self.assertEqual(store.get("settings_version"), settings_mod.SETTINGS_VERSION)
+
+    def test_migrated_settings_are_not_rewritten_again(self) -> None:
+        self._write({"fn_actions": {"202": "toggle_window"}})
+        settings_mod.Settings()
+        settings_mod.path().write_text(
+            json.dumps({"fn_actions": {"202": "toggle_window"}, "settings_version": 2}),
+            encoding="utf-8",
+        )
+        self.assertEqual(
+            settings_mod.Settings().get("fn_actions"), {"202": "toggle_window"}
+        )
 
     def test_unknown_keys_are_not_persisted(self) -> None:
         store = settings_mod.Settings()

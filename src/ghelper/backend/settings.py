@@ -12,6 +12,9 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
+#: Bumped when the meaning of a stored value changes.
+SETTINGS_VERSION = 2
+
 DEFAULTS: dict[str, Any] = {
     "gpu_auto": False,
     "screen_auto": False,
@@ -22,7 +25,8 @@ DEFAULTS: dict[str, Any] = {
     "window_height": 600,
     "window_maximized": False,
     "fn_enabled": True,
-    "fn_actions": {"202": "toggle_window"},
+    "fn_actions": {"148": "toggle_window"},
+    "settings_version": SETTINGS_VERSION,
 }
 
 
@@ -62,10 +66,27 @@ class Settings:
         except (OSError, json.JSONDecodeError) as exc:
             log.warning("could not read %s: %s", file, exc)
             return
+        version = 1
         if isinstance(raw, dict):
+            version = raw.get("settings_version", 1)
             for key in DEFAULTS:
                 if key in raw:
                     self._values[key] = _coerce(key, raw[key])
+        self._migrate(version)
+
+    def _migrate(self, version: Any) -> None:
+        if _coerce("settings_version", version) >= SETTINGS_VERSION:
+            return
+        actions = dict(self._values.get("fn_actions") or {})
+        # v1 assumed the ROG key was KEY_PROG3.  On the GA402RK it is
+        # KEY_PROG1, so move the old default instead of leaving a dead mapping
+        # behind (and a stray one on whichever key actually sends PROG3).
+        if actions.get("202") == "toggle_window" and "148" not in actions:
+            actions.pop("202")
+            actions["148"] = "toggle_window"
+            self._values["fn_actions"] = actions
+        self._values["settings_version"] = SETTINGS_VERSION
+        self._save()
 
     def _save(self) -> None:
         file = path()
