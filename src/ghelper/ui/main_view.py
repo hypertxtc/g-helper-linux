@@ -14,6 +14,7 @@ from ..backend import cardwire as cw
 from ..backend import display
 from ..backend.system import ac_online
 from ..deps import Adw, Gdk, GLib, Gtk
+from .format import battery_line
 from .widgets import (
     BatteryScale,
     ModeButton,
@@ -418,6 +419,7 @@ class MainView(Gtk.Box):
         gpu_text = f"GPU: {gpu:.0f}\u00b0C" if gpu is not None else "GPU: \u2014"
         self.perf_section.set_live(f"{cpu_text} -  Fan: {cpu_fan}")
         self.gpu_section.set_live(f"{gpu_text} -  Fan: {gpu_fan}")
+        self.battery_section.set_live(battery_line(snapshot.get("battery")))
 
     @staticmethod
     def _fan_text(pwm: int | None, rpm: int | None) -> str:

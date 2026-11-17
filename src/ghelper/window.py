@@ -188,6 +188,7 @@ class MainWindow(Adw.ApplicationWindow):
             snapshot.get("cpu_temp"),
             gpu,
             snapshot.get("ac_online"),
+            snapshot.get("battery"),
         )
         self._tray.set_tooltip(line)
 
