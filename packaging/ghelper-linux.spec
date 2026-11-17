@@ -65,10 +65,16 @@ appstreamcli validate --no-net \
 
 %changelog
 * Tue Nov 17 2026 George <george@localhost> - 0.2.0-1
-- Fn / ROG hotkey reading and mapping with a bundled udev rule
-- Window opens next to the KDE panel on any screen edge
+- Silent / Balanced / Turbo profiles with editable fan curves
 - Fan-curve presets, copy between profiles, JSON import/export
-- AppStream metadata
+- cardwire GPU modes: Eco and Standard switch at runtime, no reboot
+- Firmware GPU MUX and dGPU switches, plus a Rescan dGPU action
+- Battery charge limit, health, and live charge/wattage/runtime readouts
+- Keyboard Aura lighting and animation speed
+- Fn / ROG hotkey reading and mapping with a bundled udev rule
+- Refresh-rate switching and per-app dGPU launching
+- Window opens next to the KDE panel on any screen edge
+- AppStream metadata and a man page
 
 * Tue Nov 17 2026 George <george@localhost> - 0.1.0-1
 - Initial package

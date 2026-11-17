@@ -41,7 +41,6 @@
   </provides>
 
   <categories>
-    <category>System</category>
     <category>Settings</category>
   </categories>
 
@@ -62,9 +61,16 @@
   <releases>
     <release version="0.2.0" date="2026-11-17">
       <description>
-        <p>Fan-curve presets: copy between profiles, save and load named presets, import and export JSON files.</p>
-        <p>Fn and ROG key mapping through a passive evdev reader, with a learning window.</p>
-        <p>The window now opens next to the KDE panel on any screen edge.</p>
+        <p>First packaged release.</p>
+        <ul>
+          <li>Silent, Balanced and Turbo profiles with editable fan curves and shareable presets.</li>
+          <li>GPU modes through cardwire, with Eco and Standard switching at runtime and no reboot.</li>
+          <li>Firmware MUX and dGPU switches, plus a Rescan dGPU action that brings the card back after ECO without rebooting.</li>
+          <li>Battery charge limit, one-shot full charge, and live charge, wattage and runtime readouts.</li>
+          <li>Keyboard Aura lighting and Fn/ROG key mapping through a passive evdev reader.</li>
+          <li>Refresh-rate switching and per-app dGPU launching.</li>
+          <li>The window opens next to the KDE panel on any screen edge.</li>
+        </ul>
       </description>
     </release>
   </releases>

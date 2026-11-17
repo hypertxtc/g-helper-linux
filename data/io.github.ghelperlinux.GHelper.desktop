@@ -6,6 +6,6 @@ Comment=Performance profiles, fan curves, GPU modes and battery care for ASUS la
 Exec=ghelper-linux
 Icon=io.github.ghelperlinux.GHelper
 Terminal=false
-Categories=System;HardwareSettings;
+Categories=Settings;HardwareSettings;
 Keywords=asus;rog;tuf;zephyrus;fan;battery;gpu;asusctl;cardwire;
 StartupNotify=true
