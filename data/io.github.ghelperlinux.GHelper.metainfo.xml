@@ -62,6 +62,18 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.2.4" date="2026-11-17">
+      <description>
+        <p>Install and stability fixes.</p>
+        <ul>
+          <li>Installs work from any prefix: the polkit policy follows the install prefix, the launcher records the rescan helper's directory, and the automation unit finds the binary through PATH.</li>
+          <li>--page opens only the requested window instead of showing the main window first, and the asusd banner shows the live error.</li>
+          <li>Settings no longer retries a failed refresh in a tight loop when asusd is unavailable.</li>
+          <li>AC/battery automation resumes after the user leaves Smart or Manual mode, and the tray keeps profile and GPU radios in separate groups.</li>
+          <li>CI checks the pip entry point and that the Makefile and install.sh stay in sync.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.3" date="2026-11-17">
       <description>
         <p>Desktop polish and packaging.</p>

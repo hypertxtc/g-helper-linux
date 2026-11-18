@@ -1,3 +1,19 @@
+ghelper-linux (0.2.4-1) unstable; urgency=medium
+
+  * Installs work from any prefix: the polkit policy follows the install
+    prefix, the launcher records the rescan helper's directory, and the
+    automation unit finds the binary through PATH.
+  * --page opens only the requested window, and the asusd banner shows the
+    live error instead of the startup message.
+  * Settings no longer retries a failed refresh in a tight loop when asusd
+    is unavailable.
+  * AC/battery automation resumes after the user leaves Smart or Manual
+    mode; the tray keeps profile and GPU radios in separate groups.
+  * nouveau dGPU temperatures are reported when no amdgpu dGPU is present,
+    and --check reports the resolved rescan helper.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Tue, 17 Nov 2026 20:40:00 -0500
+
 ghelper-linux (0.2.3-1) unstable; urgency=medium
 
   * Refresh-rate control stays read-only on desktops other than KDE Plasma

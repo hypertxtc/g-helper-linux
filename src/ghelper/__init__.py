@@ -4,5 +4,5 @@
 
 APP_ID = "io.github.ghelperlinux.GHelper"
 APP_NAME = "g-helper-linux"
-APP_VERSION = "0.2.3"
+APP_VERSION = "0.2.4"
 APP_ICON = APP_ID

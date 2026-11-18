@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.2.3}
+Version:        %{?gh_version}%{!?gh_version:0.2.4}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,6 +64,19 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Tue Nov 17 2026 Atlas <atlas@hypertextcoffee.com> - 0.2.4-1
+- Installs work from any prefix: the polkit policy and the launcher follow
+  PREFIX, and the automation unit finds the binary through PATH
+- --page opens only the requested window; the asusd banner shows the live
+  error instead of the startup message
+- Settings no longer retries a failed refresh in a tight loop when asusd
+  is unavailable
+- AC/battery automation resumes after the user leaves Smart or Manual mode;
+  the tray keeps profile and GPU radios in separate groups
+- nouveau dGPU temperatures are reported when no amdgpu dGPU is present
+- CI checks the pip entry point, the desktop entry and installer parity;
+  --check reports the resolved rescan helper
+
 * Tue Nov 17 2026 Atlas <atlas@hypertextcoffee.com> - 0.2.3-1
 - Refresh-rate control is read-only off KDE Plasma, with an explanation
 - AppStream metadata links to the homepage and issue tracker
