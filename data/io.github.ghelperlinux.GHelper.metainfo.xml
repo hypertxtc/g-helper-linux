@@ -62,6 +62,15 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.2.6" date="2026-11-18">
+      <description>
+        <p>Interface tests.</p>
+        <ul>
+          <li>Headless smoke tests build the real application and open the main, Settings, Fans and Power, and Hotkeys windows, so a broken layout or a bad CSS selector fails the build instead of waiting for someone to click around.</li>
+          <li>GTK criticals are fatal in those tests, and they run in CI under Xvfb with private session and system buses.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.5" date="2026-11-17">
       <description>
         <p>Interface clean-up.</p>
