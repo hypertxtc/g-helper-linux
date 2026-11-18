@@ -18,7 +18,7 @@ POLICYDIR := $(SHAREDIR)/polkit-1/actions
 UNITDIR := $(DESTDIR)$(PREFIX)/lib/systemd/user
 UDEVDIR := $(DESTDIR)$(PREFIX)/lib/udev/rules.d
 
-.PHONY: run check test install uninstall icon rpm deb
+.PHONY: run check test test-ui install uninstall icon rpm deb
 
 run:
 	PYTHONPATH=src python3 -m ghelper
@@ -28,6 +28,10 @@ check:
 
 test:
 	PYTHONPATH=src python3 -m unittest discover -s tests -v
+
+# Builds every window; needs a display (X11 or Wayland), or xvfb-run.
+test-ui:
+	PYTHONPATH=src GHELPER_UI_TESTS=1 python3 -m unittest tests.test_ui_smoke -v
 
 ICONPNG := src/ghelper/data/$(APPID).png
 ICONSVG := $(ICONPNG:.png=.svg)

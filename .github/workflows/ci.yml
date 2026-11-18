@@ -38,6 +38,20 @@ jobs:
       - name: Unit tests
         run: PYTHONPATH=src python3 -m unittest discover -s tests -v
 
+      # GTK4 has no headless backend, so give it an X server and the session
+      # bus a GApplication wants.  A private system bus keeps Asusd's eager
+      # connection from failing while asusd itself is absent.
+      - name: Headless UI smoke tests
+        env:
+          GHELPER_UI_TESTS: "1"
+          GSK_RENDERER: cairo
+        run: |
+          mkdir -p /run/dbus
+          dbus-daemon --system --fork
+          dbus-run-session -- xvfb-run -a \
+            env PYTHONPATH=src python3 -m unittest discover -s tests \
+              -p 'test_ui_smoke.py' -v
+
       - name: Validate AppStream metadata
         run: appstreamcli validate --no-net data/*.metainfo.xml
 

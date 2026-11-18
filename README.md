@@ -368,6 +368,7 @@ src/ghelper/
 make run          # launch from the checkout
 make check        # backend diagnostics
 make test         # parser and automation unit tests (no hardware needed)
+make test-ui      # build every window (needs a display; CI uses Xvfb)
 make install      # install to /usr; use PREFIX=/usr/local to override
 make rpm          # build an RPM in ~/rpmbuild
 ```
@@ -381,8 +382,11 @@ are pure functions in `src/ghelper/backend/gpu_policy.py` with unit tests, so
 the widget only performs the I/O. `make test` also fails when `APP_VERSION`,
 `pyproject.toml`, the RPM spec and the newest AppStream release disagree.
 
-CI (`.github/workflows/ci.yml`) runs ruff, the unit tests, AppStream
-validation and an RPM build in a Fedora container on every push.
+`make test-ui` constructs the real application and every page, pumps the main
+loop until the background refresh lands, and fails on any GTK critical. It is
+opt-in so unit runs do not flash windows on your desktop. CI runs it under
+Xvfb with private session and system buses alongside the unit tests, AppStream
+validation and the RPM and DEB builds.
 
 ## Known limitations
 
