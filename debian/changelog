@@ -1,3 +1,14 @@
+ghelper-linux (0.2.5-1) unstable; urgency=medium
+
+  * Fans and Power: distinct auto-apply labels, Apply Power Limits next to
+    the sliders, and sliders that use the spare height.
+  * Status text is no longer styled like a link.
+  * Hotkeys opens compact with a mapped-keys header and an empty-state hint.
+  * The battery limit is labelled separately from live charge, and the
+    keyboard colour swatch has a border and a tooltip.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Tue, 17 Nov 2026 22:20:00 -0500
+
 ghelper-linux (0.2.4-1) unstable; urgency=medium
 
   * Installs work from any prefix: the polkit policy follows the install

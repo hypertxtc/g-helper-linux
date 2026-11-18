@@ -62,6 +62,17 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.2.5" date="2026-11-17">
+      <description>
+        <p>Interface clean-up.</p>
+        <ul>
+          <li>Fans and Power names each auto-apply switch, keeps Apply Power Limits with the sliders, and uses the spare height for longer sliders.</li>
+          <li>Status text such as Applied and Listening on no longer looks like a clickable link.</li>
+          <li>Hotkeys opens compact, with a Mapped keys header, Clear all beside it and an empty-state hint.</li>
+          <li>The battery limit is labelled separately from live charge, and the keyboard colour swatch has a visible border and a tooltip.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.4" date="2026-11-17">
       <description>
         <p>Install and stability fixes.</p>

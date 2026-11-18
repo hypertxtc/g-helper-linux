@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.2.4}
+Version:        %{?gh_version}%{!?gh_version:0.2.5}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,6 +64,14 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Tue Nov 17 2026 Atlas <atlas@hypertextcoffee.com> - 0.2.5-1
+- Fans and Power: distinct auto-apply labels, Apply Power Limits with the
+  sliders, and sliders that use the spare height
+- Status text no longer styled like a link
+- Hotkeys opens compact with a mapped-keys header and an empty-state hint
+- Battery limit labelled separately from live charge; keyboard colour swatch
+  has a border and a tooltip
+
 * Tue Nov 17 2026 Atlas <atlas@hypertextcoffee.com> - 0.2.4-1
 - Installs work from any prefix: the polkit policy and the launcher follow
   PREFIX, and the automation unit finds the binary through PATH
