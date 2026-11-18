@@ -208,6 +208,7 @@ class VerticalSlider(Gtk.Box):
         self.scale.set_draw_value(False)
         self.scale.set_size_request(-1, 180)
         self.scale.set_hexpand(False)
+        self.scale.set_vexpand(True)
         self.scale.add_css_class("gh-scale")
         self.scale.add_css_class("vertical")
         self.scale.set_value(value)

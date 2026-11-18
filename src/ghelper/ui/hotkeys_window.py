@@ -17,7 +17,7 @@ class HotkeysWindow(Adw.Window):
             modal=False,
             title="Hotkeys",
             default_width=560,
-            default_height=520,
+            default_height=380,
         )
         self.window = window
         self.settings = window.settings
@@ -51,8 +51,22 @@ class HotkeysWindow(Adw.Window):
         body.append(intro)
 
         self._status = Gtk.Label(label="", xalign=0.0, wrap=True)
-        self._status.add_css_class("gh-status")
+        self._status.add_css_class("gh-live")
         body.append(self._status)
+
+        mapped = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        title = Gtk.Label(label="Mapped keys", xalign=0.0)
+        title.add_css_class("gh-section-title")
+        title.set_hexpand(True)
+        mapped.append(title)
+        clear = flat_button("Clear all", small=True)
+        clear.connect("clicked", lambda *_: self.clear_all())
+        mapped.append(clear)
+        body.append(mapped)
+
+        self._empty = Gtk.Label(label="No keys mapped yet \u2014 press one.", xalign=0.0)
+        self._empty.add_css_class("gh-live")
+        body.append(self._empty)
 
         self._list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         scrolled = Gtk.ScrolledWindow()
@@ -61,16 +75,6 @@ class HotkeysWindow(Adw.Window):
         scrolled.set_vexpand(True)
         scrolled.set_child(self._list)
         body.append(scrolled)
-
-        footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        hint = Gtk.Label(label="Mapped keys", xalign=0.0)
-        hint.add_css_class("gh-live")
-        hint.set_hexpand(True)
-        footer.append(hint)
-        clear = flat_button("Clear all", small=True)
-        clear.connect("clicked", lambda *_: self.clear_all())
-        footer.append(clear)
-        body.append(footer)
 
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(header)
@@ -94,13 +98,11 @@ class HotkeysWindow(Adw.Window):
             devices = listener.start()
         except hotkeys_mod.HotkeyError:
             self._status.set_text(hotkeys_mod.HINT)
-            self._status.remove_css_class("gh-link-ok")
-            self._status.add_css_class("gh-link-error")
+            self._status.add_css_class("gh-status-error")
             return
         self._listener = listener
         names = ", ".join(dict.fromkeys(device.name for device in devices))
         self._status.set_text(f"Listening on {names}.")
-        self._status.add_css_class("gh-link-ok")
 
     def _on_key(self, event) -> None:
         if event.code not in self._rows:
@@ -133,6 +135,7 @@ class HotkeysWindow(Adw.Window):
         row.append(combo)
         self._list.append(row)
         self._rows[code] = combo
+        self._empty.set_visible(False)
 
     def _on_action_changed(self, combo: Gtk.DropDown, _param, code: int) -> None:
         index = combo.get_selected()
@@ -153,6 +156,7 @@ class HotkeysWindow(Adw.Window):
             if parent is not None:
                 self._list.remove(parent)
         self._rows.clear()
+        self._empty.set_visible(True)
         self._status.set_text("All mappings cleared. Press a key to add one.")
 
     # -- teardown ---------------------------------------------------------

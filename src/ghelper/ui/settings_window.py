@@ -168,7 +168,7 @@ class SettingsWindow(Adw.Window):
         if not cw.available():
             add.set_sensitive(False)
             missing = Gtk.Label(label="cardwire is not installed", xalign=0.0)
-            missing.add_css_class("gh-link-error")
+            missing.add_css_class("gh-status-error")
             row.append(missing)
         row.append(add)
         section.add(row)

@@ -240,13 +240,20 @@ window.dark .gh-popover-item:hover {
   background: transparent;
 }
 
-.gh-link-ok {
-  color: #3aaeef;
-  text-decoration: underline;
+.gh-status-ok {
+  color: #15803d;
 }
 
-.gh-link-error {
-  color: #ff2020;
+window.dark .gh-status-ok {
+  color: #4ade80;
+}
+
+.gh-status-error {
+  color: #c01c28;
+}
+
+window.dark .gh-status-error {
+  color: #ff7b72;
 }
 
 .gh-scale trough {
@@ -274,10 +281,6 @@ window.dark .gh-scale trough {
 
 window.dark .gh-scale slider {
   border-color: #2e2e2e;
-}
-
-.gh-scale marks {
-  color: #8a8a8a;
 }
 
 .gh-scale marks {
@@ -337,7 +340,12 @@ window.dark .gh-dropdown > button {
 .gh-color-button {
   min-height: 28px;
   min-width: 34px;
+  border: 1px solid #b8b8b8;
   border-radius: 3px;
+}
+
+window.dark .gh-color-button {
+  border-color: #4a4a4a;
 }
 
 .gh-footer-label {

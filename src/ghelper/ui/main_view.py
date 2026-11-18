@@ -158,14 +158,16 @@ class MainView(Gtk.Box):
         except AttributeError:  # older GTK
             pass
         self._color_dialog = Gtk.ColorDialog()
-        self._color_text = flat_button("Color")
-        self._color_text.connect("clicked", self._choose_color)
         self._keyboard_row.append(self._mode_dropdown)
         if self._color_button is not None:
             self._color_button.add_css_class("gh-color-button")
+            self._color_button.set_tooltip_text("Keyboard colour")
             self._color_button.connect("notify::rgba", self._on_aura_color)
             self._keyboard_row.append(self._color_button)
-            self._keyboard_row.append(self._color_text)
+        else:  # older GTK: no colour dialog button
+            color_text = flat_button("Color")
+            color_text.connect("clicked", self._choose_color)
+            self._keyboard_row.append(color_text)
         self._keyboard_row.append(self._brightness_dropdown)
         self.keyboard_section.add(self._keyboard_row)
 
@@ -187,9 +189,12 @@ class MainView(Gtk.Box):
 
     def _build_battery(self) -> None:
         self.battery_section = Section("gh-battery-symbolic", "Battery Charge Limit")
+        self._limit_label = Gtk.Label(label="", xalign=1.0)
+        self._limit_label.add_css_class("gh-live")
         self._full_button = flat_button("Full", secondary=True, small=True)
         self._full_button.set_valign(Gtk.Align.CENTER)
         self._full_button.connect("clicked", self._on_full_charge)
+        self.battery_section.header.add_suffix(self._limit_label)
         self.battery_section.header.add_suffix(self._full_button)
         self.battery_scale = BatteryScale(self._on_battery_changed)
         self.battery_section.add(self.battery_scale)
@@ -434,11 +439,11 @@ class MainView(Gtk.Box):
     def _apply_battery(self, data: dict) -> None:
         limit = data.get("limit")
         if limit is None:
-            self.battery_section.set_title("Battery Charge Limit")
+            self._limit_label.set_text("")
             self.battery_scale.set_sensitive(False)
             return
         self.battery_scale.set_sensitive(True)
-        self.battery_section.set_title(f"Battery Charge Limit: {limit}%")
+        self._limit_label.set_text(f"Limit {limit}%")
         self.battery_scale.set_value(int(limit))
 
     # -- live telemetry ---------------------------------------------------
@@ -868,7 +873,7 @@ class MainView(Gtk.Box):
 
     # -- battery actions --------------------------------------------------
     def _on_battery_changed(self, value: int) -> None:
-        self.battery_section.set_title(f"Battery Charge Limit: {value}%")
+        self._limit_label.set_text(f"Limit {value}%")
         self.window.run(
             lambda: self.asusd.set_charge_limit(value),
             done=lambda _r: self.window.toast(f"Charge limit: {value}%"),

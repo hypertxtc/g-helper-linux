@@ -98,11 +98,11 @@ class FansWindow(Adw.Window):
         self.ppt_header = SectionHeader("gh-power-symbolic", "Power Limits (PPT)")
         self.ppt_status = Gtk.Label(label="\u2014", xalign=0.0)
         self.ppt_status.add_css_class("gh-status")
-        self.ppt_status.add_css_class("gh-link-ok")
 
         sliders = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
         sliders.set_halign(Gtk.Align.CENTER)
         sliders.set_homogeneous(True)
+        sliders.set_vexpand(True)
         self.platform_slider = VerticalSlider(
             "Platform", 0, 100, 50, lambda value: self._on_ppt_slider("platform", value)
         )
@@ -115,11 +115,8 @@ class FansWindow(Adw.Window):
         left.append(self.ppt_header)
         left.append(self.ppt_status)
         left.append(sliders)
-        spacer = Gtk.Box()
-        spacer.set_vexpand(True)
-        left.append(spacer)
 
-        self._auto_power = Gtk.CheckButton(label="Auto Apply")
+        self._auto_power = Gtk.CheckButton(label="Auto apply power limits")
         self._auto_power.add_css_class("gh-check")
         self._auto_power.set_active(bool(self.settings.get("auto_apply_ppt")))
         self._auto_power.connect("toggled", self._on_auto_power)
@@ -165,7 +162,7 @@ class FansWindow(Adw.Window):
         right.append(self.gpu_chart)
 
         bottom = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        self._auto_fans = Gtk.CheckButton(label="Auto Apply")
+        self._auto_fans = Gtk.CheckButton(label="Auto apply fan curves")
         self._auto_fans.add_css_class("gh-check")
         self._auto_fans.set_active(bool(self.settings.get("auto_apply_fans")))
         self._auto_fans.connect("toggled", self._on_auto_fans)
@@ -385,9 +382,7 @@ class FansWindow(Adw.Window):
                 self._ppt_defaults[key] = int(default)
 
         if not present:
-            self.ppt_status.set_text("Not available")
-            self.ppt_status.remove_css_class("gh-link-ok")
-            self.ppt_status.add_css_class("gh-link-error")
+            self._set_ppt_status("Not available", ok=False)
             return
         self._update_ppt_status()
 
@@ -405,18 +400,19 @@ class FansWindow(Adw.Window):
             current = int(attr.get("CurrentValue", -1000))
             if abs(current - self._ppt_values[key]) > 1:
                 applied = False
-        self.ppt_status.remove_css_class("gh-link-ok")
-        self.ppt_status.remove_css_class("gh-link-error")
         if not present:
-            self.ppt_status.set_text("Not available")
-            self.ppt_status.add_css_class("gh-link-error")
+            self._set_ppt_status("Not available", ok=False)
             return
-        if applied:
-            self.ppt_status.set_text("Applied")
-            self.ppt_status.add_css_class("gh-link-ok")
-        else:
-            self.ppt_status.set_text("Not Applied")
-            self.ppt_status.add_css_class("gh-link-error")
+        self._set_ppt_status("Applied" if applied else "Not applied", ok=applied)
+
+    def _set_ppt_status(self, text: str, *, ok: bool | None = None) -> None:
+        self.ppt_status.set_text(text)
+        for css in ("gh-status-ok", "gh-status-error"):
+            self.ppt_status.remove_css_class(css)
+        if ok is True:
+            self.ppt_status.add_css_class("gh-status-ok")
+        elif ok is False:
+            self.ppt_status.add_css_class("gh-status-error")
 
     def _apply_epp(self, epp: int | None) -> None:
         self._loading = True
