@@ -14,7 +14,9 @@
       <allow_active>auth_admin_keep</allow_active>
       <allow_inactive>auth_admin</allow_inactive>
     </defaults>
-    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/ghelper-linux/rescan-pci</annotate>
+    <!-- @LIBEXECDIR@ is replaced by the installer with the real prefix, so a
+         PREFIX=/usr/local install still matches the helper pkexec runs. -->
+    <annotate key="org.freedesktop.policykit.exec.path">@LIBEXECDIR@/rescan-pci</annotate>
     <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
   </action>
 </policyconfig>

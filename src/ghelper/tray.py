@@ -180,10 +180,13 @@ class _TrayMenu(dbus.service.Object):
             "visible": dbus.Boolean(True),
         }
 
-    def _radio(self, label: str, active: bool) -> dict:
+    def _radio(self, label: str, active: bool, group: int) -> dict:
         props = self._text(label)
         props["toggle-type"] = dbus.String("radio")
         props["toggle-state"] = dbus.Int32(1 if active else 0)
+        # dbusmenu uses toggle-group to keep the profile and GPU radios from
+        # unchecking each other: one radio group per section.
+        props["toggle-group"] = dbus.Int32(group)
         return props
 
     def _separator(self) -> dict:
@@ -198,19 +201,24 @@ class _TrayMenu(dbus.service.Object):
         children = [
             self._item(ITEM_SHOW, self._text("Open G-Helper")),
             self._item(ITEM_SEP1, self._separator()),
-            self._item(ITEM_QUIET, self._radio("Silent", current == asusd_mod.QUIET)),
             self._item(
-                ITEM_BALANCED, self._radio("Balanced", current == asusd_mod.BALANCED)
+                ITEM_QUIET, self._radio("Silent", current == asusd_mod.QUIET, 1)
+            ),
+            self._item(
+                ITEM_BALANCED,
+                self._radio("Balanced", current == asusd_mod.BALANCED, 1),
             ),
             self._item(
                 ITEM_PERFORMANCE,
-                self._radio("Turbo", current == asusd_mod.PERFORMANCE),
+                self._radio("Turbo", current == asusd_mod.PERFORMANCE, 1),
             ),
             self._item(ITEM_SEP2, self._separator()),
-            self._item(ITEM_ECO, self._radio("Eco", gpu == "eco")),
-            self._item(ITEM_STANDARD, self._radio("Standard", gpu == "standard")),
-            self._item(ITEM_SMART, self._radio("Smart", gpu == "smart")),
-            self._item(ITEM_OPTIMIZED, self._radio("Optimized", gpu == "optimized")),
+            self._item(ITEM_ECO, self._radio("Eco", gpu == "eco", 2)),
+            self._item(ITEM_STANDARD, self._radio("Standard", gpu == "standard", 2)),
+            self._item(ITEM_SMART, self._radio("Smart", gpu == "smart", 2)),
+            self._item(
+                ITEM_OPTIMIZED, self._radio("Optimized", gpu == "optimized", 2)
+            ),
             self._item(ITEM_SEP3, self._separator()),
             self._item(ITEM_QUIT, self._text("Quit")),
         ]

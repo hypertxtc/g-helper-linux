@@ -170,7 +170,35 @@ def dgpu_present() -> bool | None:
     return count > 1
 
 
-RESCAN_HELPER = "/usr/libexec/ghelper-linux/rescan-pci"
+#: Name of the privileged helper installed next to the app.
+RESCAN_HELPER_NAME = "rescan-pci"
+
+#: Standard prefixes.  The launcher exported by ``make install`` sets
+#: ``GHELPER_LIBEXECDIR`` for any other prefix, because the polkit policy pins
+#: the helper's exact path when it is installed.
+HELPER_DIRS = (
+    Path("/usr/libexec/ghelper-linux"),
+    Path("/usr/local/libexec/ghelper-linux"),
+)
+
+
+def rescan_helper() -> Path | None:
+    """Locate the installed PCI-rescan helper.
+
+    The launcher records the real libexec directory in the environment, so a
+    ``PREFIX=/opt/foo`` install is found too.  ``None`` means the app is being
+    run from a checkout and ``pkexec`` has to fall back to the generic action.
+    """
+    override = os.environ.get("GHELPER_LIBEXECDIR")
+    if override:
+        candidate = Path(override) / RESCAN_HELPER_NAME
+        if candidate.is_file():
+            return candidate
+    for directory in HELPER_DIRS:
+        candidate = directory / RESCAN_HELPER_NAME
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def rescan_pci(timeout: float = 180.0) -> None:
@@ -186,8 +214,8 @@ def rescan_pci(timeout: float = 180.0) -> None:
         raise OSError(
             "pkexec is not installed; run \"echo 1 | sudo tee /sys/bus/pci/rescan\""
         )
-    helper = Path(RESCAN_HELPER)
-    if helper.exists():
+    helper = rescan_helper()
+    if helper is not None:
         argv = [pkexec, str(helper)]
     else:
         # Running from a checkout: use polkit's generic exec action.
@@ -259,6 +287,18 @@ class Monitor:
                 # A blocked / runtime-suspended dGPU reads EBUSY: report None.
                 result["dgpu"] = edge / 1000.0 if edge is not None else None
                 result["dgpu_junction"] = junction / 1000.0 if junction is not None else None
+        if result["dgpu"] is None:
+            # The proprietary NVIDIA driver has no hwmon node, but nouveau
+            # does, so NVIDIA laptops get a temperature at least in that case.
+            for path in self._hwmon.get("nouveau", []):
+                edge = _int(os.path.join(path, "temp1_input"))
+                if edge is None:
+                    continue
+                pci = _pci_address(path)
+                if pci:
+                    result["pci"][pci] = {"igpu": False, "edge": edge, "junction": None}
+                result["dgpu"] = edge / 1000.0
+                break
         return result
 
     def fans(self) -> dict[str, int | None]:

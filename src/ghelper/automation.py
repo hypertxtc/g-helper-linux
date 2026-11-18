@@ -127,7 +127,6 @@ def refresh_target(
 class Automation:
     def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
-        self._gpu_manual = False
         self._stop = False
 
     def stop(self, *_args) -> None:
@@ -135,7 +134,7 @@ class Automation:
 
     def apply(self, ac: bool, *, dry_run: bool = False) -> list[str]:
         actions: list[str] = []
-        if self.config["gpu_mode"] and not self._gpu_manual:
+        if self.config["gpu_mode"]:
             actions.extend(self._apply_gpu(ac, dry_run))
         if self.config["refresh_rate"]:
             actions.extend(self._apply_refresh(ac, dry_run))
@@ -151,8 +150,10 @@ class Automation:
             log.warning("cardwire: %s", exc)
             return []
         if current in ("smart", "manual"):
-            self._gpu_manual = True
-            log.info("GPU is in %s mode; leaving it alone", current)
+            # The user is driving the GPU right now.  Checked on every
+            # decision rather than latched, so switching back to a normal
+            # mode re-enables automation without restarting the service.
+            log.debug("GPU is in %s mode; leaving it alone", current)
             return []
         if current == target:
             return []

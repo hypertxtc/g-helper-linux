@@ -78,16 +78,17 @@ class Application(Adw.Application):
         window = self._ensure_window()
         self._ensure_tray(window)
 
-        if page == "fans":
-            GLib.idle_add(window.open_fans_window)
-        elif page == "settings":
-            GLib.idle_add(window.open_settings_window)
-        elif page == "hotkeys":
-            GLib.idle_add(window.open_hotkeys_window)
-
-        if page != "main":
-            self.show_window()
+        opener = {
+            "fans": window.open_fans_window,
+            "settings": window.open_settings_window,
+            "hotkeys": window.open_hotkeys_window,
+        }.get(page)
+        if opener is not None:
+            # A page request opens only that window.  Showing the main window
+            # first would flash it, steal focus and contradict "--page X".
+            GLib.idle_add(opener)
             return
+
         if hidden and self.tray is not None and self.tray.active:
             window.set_visible(False)
         else:

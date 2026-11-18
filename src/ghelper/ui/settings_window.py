@@ -364,7 +364,14 @@ class SettingsWindow(Adw.Window):
         if self._refresh_pending:
             return
         self._refresh_pending = True
-        self.window.run(self._collect, done=self._apply, error=self._failed)
+        self.window.run(self._collect, done=self._apply, error=self._load_failed)
+
+    def _load_failed(self, exc: Exception) -> None:
+        # Never retry from here: asusd being down would turn this into an
+        # endless refresh loop that floods the journal.  A later manual or
+        # automatic refresh picks the state up again.
+        self._refresh_pending = False
+        self.window.show_error(exc, quiet=True)
 
     def _collect(self) -> dict:
         data: dict = {}

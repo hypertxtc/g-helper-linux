@@ -14,11 +14,18 @@ from . import APP_NAME, APP_VERSION
 
 def _check() -> int:
     """Print a JSON backend report; useful on new machines and in bug reports."""
+    import os
+
     from .backend import asusd as asusd_mod
     from .backend import cardwire, display, hotkeys
-    from .backend.system import Monitor, machine_name
+    from .backend.system import Monitor, machine_name, rescan_helper
 
     report: dict = {"machine": machine_name(), "version": APP_VERSION}
+    helper = rescan_helper()
+    report["rescan"] = {
+        "helper": str(helper) if helper is not None else None,
+        "libexec_override": os.environ.get("GHELPER_LIBEXECDIR") or None,
+    }
     client = asusd_mod.Asusd()
     try:
         client.connect()

@@ -101,6 +101,22 @@ class LayoutTests(unittest.TestCase):
                 ]
                 self.assertEqual(states, [0, 0, 0, 0])
 
+    def test_profile_and_gpu_radios_use_separate_groups(self) -> None:
+        menu_items = items(make_menu("standard"))
+        for item in (
+            tray_mod.ITEM_QUIET,
+            tray_mod.ITEM_BALANCED,
+            tray_mod.ITEM_PERFORMANCE,
+        ):
+            self.assertEqual(int(menu_items[item]["toggle-group"]), 1)
+        for item in (
+            tray_mod.ITEM_ECO,
+            tray_mod.ITEM_STANDARD,
+            tray_mod.ITEM_SMART,
+            tray_mod.ITEM_OPTIMIZED,
+        ):
+            self.assertEqual(int(menu_items[item]["toggle-group"]), 2)
+
 
 class EventTests(unittest.TestCase):
     def test_gpu_clicks_reach_the_window(self) -> None:

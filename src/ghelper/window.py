@@ -103,17 +103,14 @@ class MainWindow(Adw.ApplicationWindow):
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(header)
 
-        self.banner = Adw.Banner(
-            title=f"asusd is not available. {self._asusd_error}".strip(),
-            button_label="Retry",
-        )
+        self.banner = Adw.Banner(title="asusd is not available", button_label="Retry")
         self.banner.connect("button-clicked", self._on_retry_asusd)
-        self.banner.set_revealed(not self.asusd_available)
         toolbar.add_top_bar(self.banner)
         toolbar.set_content(self.scroll)
 
         self.toasts.set_child(toolbar)
         self.set_content(self.toasts)
+        self._update_banner()
         theme.register_root(self)
 
         reload_action = Gio.SimpleAction(name="reload")
@@ -137,6 +134,7 @@ class MainWindow(Adw.ApplicationWindow):
             log.warning("asusd unavailable: %s", exc)
             return list(PROFILE_ORDER)
         self.asusd_available = True
+        self._asusd_error = ""
         try:
             choices = set(self.asusd.platform_choices())
         except AsusdError:
@@ -149,6 +147,17 @@ class MainWindow(Adw.ApplicationWindow):
             if profile in choices:
                 profiles.append(profile)
         return profiles or list(PROFILE_ORDER)
+
+    def _update_banner(self) -> None:
+        """Show the live asusd state; the text is rebuilt, not frozen."""
+        if self.asusd_available:
+            title = "asusd is available"
+        elif self._asusd_error:
+            title = f"asusd is not available. {self._asusd_error}"
+        else:
+            title = "asusd is not available"
+        self.banner.set_title(title)
+        self.banner.set_revealed(not self.asusd_available)
 
     def profile_label(self, profile: int) -> str:
         return PROFILE_LABELS.get(profile, PROFILE_NAMES.get(profile, str(profile)))
@@ -386,7 +395,7 @@ class MainWindow(Adw.ApplicationWindow):
     def refresh_all(self) -> None:
         self.monitor.refresh_devices()
         self._detect_profiles()
-        self.banner.set_revealed(not self.asusd_available)
+        self._update_banner()
         self.main_view.refresh()
         if self._fans_window is not None:
             self._fans_window.refresh()
@@ -396,13 +405,9 @@ class MainWindow(Adw.ApplicationWindow):
         self._tick()
 
     def _on_retry_asusd(self, _banner: Adw.Banner) -> None:
-        try:
-            self.asusd.connect()
-        except AsusdError:
-            pass
-        self.asusd_available = self.asusd.available
+        # _detect_profiles() reconnects and records the error either way.
         self.profiles = self._detect_profiles() or self.profiles
-        self.banner.set_revealed(not self.asusd_available)
+        self._update_banner()
         if self.asusd_available:
             self.refresh_all()
             self.toast(f"Connected to asusd {self.asusd.version}")

@@ -147,6 +147,13 @@ class SettingsTests(unittest.TestCase):
             json.loads(settings_mod.path().read_text(encoding="utf-8")),
         )
 
+    def test_defaults_are_not_shared_between_instances(self) -> None:
+        store = settings_mod.Settings()
+        actions = store.get("fn_actions")
+        actions["999"] = "profile_next"
+        self.assertNotIn("999", settings_mod.Settings().get("fn_actions"))
+        self.assertNotIn("999", settings_mod.DEFAULTS["fn_actions"])
+
 
 if __name__ == "__main__":
     unittest.main()

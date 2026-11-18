@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -114,10 +115,15 @@ class DisplayControllerTests(unittest.TestCase):
 
 
 class RescanTests(unittest.TestCase):
+    HELPER = Path("/usr/libexec/ghelper-linux/rescan-pci")
+
     def _run(self, *, helper: bool, returncode: int = 0, stderr: str = ""):
+        found = self.HELPER if helper else None
         with mock.patch.object(
             system.shutil, "which", return_value="/usr/bin/pkexec"
-        ), mock.patch.object(system.Path, "exists", return_value=helper), mock.patch.object(
+        ), mock.patch.object(
+            system, "rescan_helper", return_value=found
+        ), mock.patch.object(
             system.subprocess, "run"
         ) as run:
             run.return_value = mock.Mock(returncode=returncode, stdout="", stderr=stderr)
@@ -132,7 +138,7 @@ class RescanTests(unittest.TestCase):
         run, result = self._run(helper=True)
         self.assertIsNone(result)
         self.assertEqual(
-            run.call_args.args[0], ["/usr/bin/pkexec", system.RESCAN_HELPER]
+            run.call_args.args[0], ["/usr/bin/pkexec", str(self.HELPER)]
         )
 
     def test_falls_back_when_helper_is_missing(self) -> None:
@@ -155,6 +161,56 @@ class RescanTests(unittest.TestCase):
         with mock.patch.object(system.shutil, "which", return_value=None):
             with self.assertRaises(OSError):
                 system.rescan_pci()
+
+
+class RescanHelperTests(unittest.TestCase):
+    def test_launcher_override_wins(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            helper = Path(tmp) / system.RESCAN_HELPER_NAME
+            helper.write_text("#!/bin/sh\n", encoding="utf-8")
+            with mock.patch.dict(
+                system.os.environ, {"GHELPER_LIBEXECDIR": tmp}, clear=False
+            ):
+                self.assertEqual(system.rescan_helper(), helper)
+
+    def test_override_without_helper_falls_through(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(
+            system.os.environ, {"GHELPER_LIBEXECDIR": tmp}, clear=False
+        ), mock.patch.object(system, "HELPER_DIRS", ()):
+            self.assertIsNone(system.rescan_helper())
+
+    def test_unpackaged_checkout_has_no_helper(self) -> None:
+        with mock.patch.dict(system.os.environ, {}, clear=True), mock.patch.object(
+            system, "HELPER_DIRS", ()
+        ):
+            self.assertIsNone(system.rescan_helper())
+
+
+class GpuTemperatureTests(unittest.TestCase):
+    def _monitor(self, hwmon: dict[str, list[str]]) -> "system.Monitor":
+        # Bypass __init__: these tests only need the hwmon map.
+        monitor = object.__new__(system.Monitor)
+        monitor._hwmon = hwmon
+        return monitor
+
+    def test_nouveau_reports_the_dgpu_when_amdgpu_is_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "temp1_input").write_text("52000\n", encoding="utf-8")
+            monitor = self._monitor({"nouveau": [tmp]})
+            with mock.patch.object(system, "_pci_address", return_value=None):
+                temps = monitor.gpu_temps()
+        self.assertEqual(temps["dgpu"], 52.0)
+        self.assertIsNone(temps["igpu"])
+
+    def test_nouveau_is_ignored_when_amdgpu_has_a_dgpu(self) -> None:
+        with tempfile.TemporaryDirectory() as amd, tempfile.TemporaryDirectory() as nv:
+            Path(amd, "temp1_input").write_text("61000\n", encoding="utf-8")
+            Path(nv, "temp1_input").write_text("52000\n", encoding="utf-8")
+            monitor = self._monitor({"amdgpu": [amd], "nouveau": [nv]})
+            # No PCI address means no boot_vga flag, so the amdgpu is the dGPU.
+            with mock.patch.object(system, "_pci_address", return_value=None):
+                temps = monitor.gpu_temps()
+        self.assertEqual(temps["dgpu"], 61.0)
 
 
 class ArmouryAttributeTests(unittest.TestCase):

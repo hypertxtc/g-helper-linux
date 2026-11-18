@@ -4,7 +4,9 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/ghelper-linux --daemon
+# Found through PATH so a PREFIX=/usr/local install works without rewriting
+# the unit at install time.
+ExecStart=/usr/bin/env ghelper-linux --daemon
 Restart=on-failure
 RestartSec=5
 

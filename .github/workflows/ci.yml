@@ -19,7 +19,8 @@ jobs:
       - name: Install dependencies
         run: >
           dnf install -y curl git make tar rpm-build python3 python3-dbus
-          python3-gobject gtk4 libadwaita appstream desktop-file-utils
+          python3-pip python3-gobject gobject-introspection gtk4 libadwaita
+          appstream desktop-file-utils
 
       - uses: actions/checkout@v7
 
@@ -39,6 +40,20 @@ jobs:
 
       - name: Validate AppStream metadata
         run: appstreamcli validate --no-net data/*.metainfo.xml
+
+      - name: Validate install scripts and the desktop entry
+        run: |
+          bash -n install.sh
+          sh -n data/ghelper-rescan-pci
+          desktop-file-validate data/*.desktop
+
+      # The Makefile path is covered by the RPM below; this checks the other
+      # supported install route and the console script from pyproject.toml.
+      - name: Install through pip and run the entry point
+        run: |
+          python3 -m venv /tmp/venv
+          /tmp/venv/bin/pip install --no-deps .
+          /tmp/venv/bin/ghelper-linux --version
 
       - name: Build RPM
         run: make rpm RPMTOP=/tmp/rpmbuild

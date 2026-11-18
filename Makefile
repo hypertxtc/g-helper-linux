@@ -8,7 +8,10 @@ VERSION := $(shell python3 -c "import sys; sys.path.insert(0, 'src'); import ghe
 RPMTOP ?= $(HOME)/rpmbuild
 LIBDIR := $(DESTDIR)$(PREFIX)/lib/ghelper-linux
 BINDIR := $(DESTDIR)$(PREFIX)/bin
-LIBEXECDIR := $(DESTDIR)$(PREFIX)/libexec/ghelper-linux
+# Prefix without DESTDIR: it is baked into the launcher and the polkit policy,
+# which must point at the paths that exist on the target system.
+LIBEXECDIR_PREFIX := $(PREFIX)/libexec/ghelper-linux
+LIBEXECDIR := $(DESTDIR)$(LIBEXECDIR_PREFIX)
 SHAREDIR := $(DESTDIR)$(PREFIX)/share
 METAINFODIR := $(SHAREDIR)/metainfo
 POLICYDIR := $(SHAREDIR)/polkit-1/actions
@@ -44,8 +47,8 @@ install: $(ICONPNG)
 	cp -r src/ghelper $(LIBDIR)/ghelper
 	find $(LIBDIR) -name __pycache__ -type d -prune -exec rm -rf {} +
 	install -d $(BINDIR)
-	printf '#!/bin/sh\nexec env PYTHONPATH="%s" python3 -m ghelper "$$@"\n' \
-		"$(PREFIX)/lib/ghelper-linux" > $(BINDIR)/ghelper-linux
+	printf '#!/bin/sh\nexport GHELPER_LIBEXECDIR="%s"\nexec env PYTHONPATH="%s" python3 -m ghelper "$$@"\n' \
+		"$(LIBEXECDIR_PREFIX)" "$(PREFIX)/lib/ghelper-linux" > $(BINDIR)/ghelper-linux
 	chmod 755 $(BINDIR)/ghelper-linux
 	install -Dm644 data/$(APPID).desktop $(SHAREDIR)/applications/$(APPID).desktop
 	install -Dm644 data/$(APPID).metainfo.xml \
@@ -61,8 +64,10 @@ install: $(ICONPNG)
 		$(UDEVDIR)/60-ghelper-hotkeys.rules
 	install -Dm755 data/ghelper-rescan-pci \
 		$(LIBEXECDIR)/rescan-pci
-	install -Dm644 data/$(APPID).policy \
-		$(POLICYDIR)/$(APPID).policy
+	install -d $(POLICYDIR)
+	sed 's|@LIBEXECDIR@|$(LIBEXECDIR_PREFIX)|g' data/$(APPID).policy \
+		> $(POLICYDIR)/$(APPID).policy
+	chmod 644 $(POLICYDIR)/$(APPID).policy
 	if [ -z "$(DESTDIR)" ]; then \
 		udevadm control --reload-rules 2>/dev/null || true; \
 		udevadm trigger --subsystem-match=input 2>/dev/null || true; \

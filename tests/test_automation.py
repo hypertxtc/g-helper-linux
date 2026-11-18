@@ -84,7 +84,23 @@ class ApplyTests(unittest.TestCase):
             self.assertEqual(actions, [])
             daemon.apply(True, dry_run=True)
         set_mode.assert_not_called()
-        self.assertTrue(daemon._gpu_manual)
+
+    def test_leaving_a_manual_mode_resumes_automation(self) -> None:
+        config = automation.merge_config({"gpu_mode": True, "refresh_rate": False})
+        daemon = automation.Automation(config)
+        current = {"current": "smart"}
+        with (
+            mock.patch.object(automation.cardwire, "available", return_value=True),
+            mock.patch.object(
+                automation.cardwire, "get_state", side_effect=lambda: dict(current)
+            ),
+            mock.patch.object(automation.cardwire, "set_mode") as set_mode,
+        ):
+            self.assertEqual(daemon.apply(False, dry_run=True), [])
+            current["current"] = "hybrid"
+            actions = daemon.apply(False, dry_run=True)
+        self.assertEqual(actions, ["GPU mode: hybrid -> integrated"])
+        set_mode.assert_not_called()
 
     def test_no_change_when_already_on_target(self) -> None:
         config = automation.merge_config({"gpu_mode": True, "refresh_rate": False})

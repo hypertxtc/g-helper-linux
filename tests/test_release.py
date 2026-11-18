@@ -20,7 +20,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from ghelper import APP_VERSION  # noqa: E402
-from ghelper.backend import system  # noqa: E402
 
 METAINFO = ROOT / "data/io.github.ghelperlinux.GHelper.metainfo.xml"
 
@@ -153,12 +152,13 @@ class PolicyTests(unittest.TestCase):
             action.get("id"), "io.github.ghelperlinux.ghelper.rescan-pci"
         )
 
-    def test_policy_runs_the_helper_the_backend_calls(self) -> None:
+    def test_policy_uses_the_install_prefix_placeholder(self) -> None:
         annotation = self.root.find(
             "action/annotate[@key='org.freedesktop.policykit.exec.path']"
         )
         assert annotation is not None
-        self.assertEqual(annotation.text, system.RESCAN_HELPER)
+        # The installers substitute the real prefix, so /usr/local works too.
+        self.assertEqual(annotation.text, "@LIBEXECDIR@/rescan-pci")
 
     def test_helper_is_packaged(self) -> None:
         spec = (ROOT / "packaging/ghelper-linux.spec").read_text(encoding="utf-8")

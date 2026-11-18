@@ -91,7 +91,10 @@ sudo make install          # or: sudo ./install.sh
 ghelper-linux
 ```
 
-Both install to `/usr` by default; override with `PREFIX=/usr/local`.
+Both install to `/usr` by default; override with `PREFIX=/usr/local`. The
+launcher records the libexec directory and the polkit policy is generated with
+the same prefix, so the pkexec-based **Rescan dGPU** action keeps working from
+any prefix.
 
 Or run without installing:
 
@@ -380,6 +383,18 @@ the widget only performs the I/O. `make test` also fails when `APP_VERSION`,
 
 CI (`.github/workflows/ci.yml`) runs ruff, the unit tests, AppStream
 validation and an RPM build in a Fedora container on every push.
+
+## Known limitations
+
+- Temperatures and fan speeds come from hwmon. AMD CPUs (`k10temp`) and GPUs
+  (`amdgpu`) are fully supported; Intel CPUs work through `coretemp`. NVIDIA
+  dGPUs are only reported when the open `nouveau` driver exposes hwmon — with
+  the proprietary driver the dGPU temperature stays blank.
+- The iGPU/dGPU split relies on the kernel's `boot_vga` flag, which is the
+  reliable signal on hybrid laptops in their normal (iGPU) boot. In a
+  dGPU-only MUX boot the two can be reported the other way round.
+- The **Rescan dGPU** action runs `pkexec` on the single backend worker, so
+  other backend refreshes wait while the password prompt is open.
 
 ## Roadmap
 

@@ -54,7 +54,12 @@ def _coerce(key: str, value: Any) -> Any:
 
 class Settings:
     def __init__(self) -> None:
-        self._values = dict(DEFAULTS)
+        # Deep enough for the dict defaults: a caller mutating "fn_actions"
+        # on one instance must not change DEFAULTS for the next one.
+        self._values = {
+            key: dict(value) if isinstance(value, dict) else value
+            for key, value in DEFAULTS.items()
+        }
         self._load()
 
     def _load(self) -> None:

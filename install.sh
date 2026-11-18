@@ -10,6 +10,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 
 LIBDIR="$DESTDIR$PREFIX/lib/ghelper-linux"
 BINDIR="$DESTDIR$PREFIX/bin"
+LIBEXECDIR="$DESTDIR$PREFIX/libexec/ghelper-linux"
 SHAREDIR="$DESTDIR$PREFIX/share"
 
 install -d "$LIBDIR" "$BINDIR"
@@ -19,6 +20,7 @@ find "$LIBDIR" -name __pycache__ -type d -prune -exec rm -rf {} +
 
 cat > "$BINDIR/ghelper-linux" <<EOF
 #!/bin/sh
+export GHELPER_LIBEXECDIR="$PREFIX/libexec/ghelper-linux"
 exec env PYTHONPATH="$PREFIX/lib/ghelper-linux" python3 -m ghelper "\$@"
 EOF
 chmod 755 "$BINDIR/ghelper-linux"
@@ -36,9 +38,11 @@ install -Dm644 "$HERE/data/ghelper-automation.service" \
 install -Dm644 "$HERE/data/60-ghelper-hotkeys.rules" \
     "$DESTDIR$PREFIX/lib/udev/rules.d/60-ghelper-hotkeys.rules"
 install -Dm755 "$HERE/data/ghelper-rescan-pci" \
-    "$DESTDIR$PREFIX/libexec/ghelper-linux/rescan-pci"
-install -Dm644 "$HERE/data/$APPID.policy" \
-    "$DESTDIR$PREFIX/share/polkit-1/actions/$APPID.policy"
+    "$LIBEXECDIR/rescan-pci"
+install -d "$SHAREDIR/polkit-1/actions"
+sed "s|@LIBEXECDIR@|$PREFIX/libexec/ghelper-linux|g" "$HERE/data/$APPID.policy" \
+    > "$SHAREDIR/polkit-1/actions/$APPID.policy"
+chmod 644 "$SHAREDIR/polkit-1/actions/$APPID.policy"
 
 if [ -z "$DESTDIR" ]; then
     udevadm control --reload-rules 2>/dev/null || true
