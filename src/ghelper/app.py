@@ -76,6 +76,9 @@ class Application(Adw.Application):
 
     def _show(self, page: str, hidden: bool) -> None:
         window = self._ensure_window()
+        # KWin evaluates a freshly loaded script asynchronously, so wait until
+        # startup rather than installing it the moment an OSD is needed.
+        window.install_watchers()
         self._ensure_tray(window)
 
         opener = {

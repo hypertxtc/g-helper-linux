@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.3.0}
+Version:        %{?gh_version}%{!?gh_version:0.3.1}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,6 +64,12 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.3.1-1
+- Centre the mode card on the whole screen and sit it near the bottom edge
+  instead of a fixed fraction of the work area
+- Load the KWin placement watcher at startup so the first card after a launch
+  is positioned as well
+
 * Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.3.0-1
 - Remember the chosen mode per power source; asusd restores it on plug and
   unplug, even while the window is closed

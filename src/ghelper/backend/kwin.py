@@ -122,18 +122,27 @@ function place(window) {{
         window.keepAbove = true;
         window.noBorder = true;
 
-        // PlacementArea already excludes panels, so the card sits above a
-        // bottom panel instead of across it.
         const desktop = workspace.currentDesktop;
+        const full = workspace.clientArea(KWin.FullScreenArea, window.output, desktop);
         const work = workspace.clientArea(KWin.PlacementArea, window.output, desktop);
-        if (!work) return;
+        if (!full) return;
 
         const geometry = Object.assign({{}}, window.frameGeometry);
         const width = geometry.width;
         const height = geometry.height;
 
-        geometry.x = work.x + Math.round((work.width - width) / 2);
-        geometry.y = work.y + Math.round(work.height * 0.82) - Math.round(height / 2);
+        // Centre on the whole screen rather than the work area: a side panel
+        // would otherwise push the card off-centre.
+        geometry.x = full.x + Math.round((full.width - width) / 2);
+
+        // Sit just above the bottom edge.  The work area is inset by the panel,
+        // so this still clears a bottom panel instead of covering it.
+        const insetBottom = work
+            ? (full.y + full.height) - (work.y + work.height)
+            : 0;
+        const gap = Math.max(Math.round(full.height * 0.06), insetBottom + 16);
+        geometry.y = full.y + full.height - height - gap;
+
         window.frameGeometry = geometry;
     }} catch (error) {{
         // A window without an output yet must not break the watcher.

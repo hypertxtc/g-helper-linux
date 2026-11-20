@@ -1,3 +1,12 @@
+ghelper-linux (0.3.1-1) unstable; urgency=medium
+
+  * Centre the mode card on the whole screen and place it near the bottom
+    edge; a side panel no longer pushes it off-centre.
+  * Load the KWin placement watcher at startup so the first card after a
+    launch is positioned too.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Fri, 20 Nov 2026 10:40:00 -0500
+
 ghelper-linux (0.3.0-1) unstable; urgency=medium
 
   * Remember the chosen performance mode per power source; asusd restores it

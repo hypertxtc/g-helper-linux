@@ -219,6 +219,19 @@ class MainWindow(Adw.ApplicationWindow):
         resource_class = application.get_application_id() if application else None
         return self.get_title() or "G-Helper", resource_class
 
+    def install_watchers(self) -> None:
+        """Load the KWin scripts before any window needs placing.
+
+        The overlay is shown from a timer, not from a click, so there is no
+        moment later where a script can be loaded without racing the window's
+        first map.  Both calls are no-ops once the scripts are running.
+        """
+        from .backend import kwin
+        from .ui.overlay import CAPTION
+
+        self.install_placement()
+        kwin.install_overlay(CAPTION)
+
     def install_placement(self) -> None:
         """Ask KWin to position the window while it is first mapped."""
         if self.is_maximized():
