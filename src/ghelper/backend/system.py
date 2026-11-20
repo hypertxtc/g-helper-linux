@@ -12,12 +12,16 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from . import nvml
+
 log = logging.getLogger(__name__)
 
 HWMON_ROOT = "/sys/class/hwmon"
 POWER_SUPPLY = "/sys/class/power_supply"
 PCI_DEVICES = "/sys/bus/pci/devices"
 CPU_FREQ = "/sys/devices/system/cpu/cpu0/cpufreq"
+NVIDIA_VENDOR = "0x10de"
+_UNSET = object()
 
 
 def read_text(path: str) -> str | None:
@@ -170,6 +174,47 @@ def dgpu_present() -> bool | None:
     return count > 1
 
 
+def nvidia_pci_devices(pci_root: str | None = None) -> list[dict[str, Any]]:
+    """Return NVIDIA display controllers bound to the proprietary ``nvidia`` driver."""
+    root = PCI_DEVICES if pci_root is None else pci_root
+    try:
+        entries = sorted(os.listdir(root))
+    except OSError:
+        return []
+    devices: list[dict[str, Any]] = []
+    for entry in entries:
+        dev_path = os.path.join(root, entry)
+        class_raw = _text(os.path.join(dev_path, "class"))
+        if not class_raw:
+            continue
+        try:
+            if int(class_raw, 16) >> 16 != 0x03:
+                continue
+        except ValueError:
+            continue
+        vendor = (_text(os.path.join(dev_path, "vendor")) or "").lower()
+        if vendor != NVIDIA_VENDOR:
+            continue
+        driver_link = os.path.join(dev_path, "driver")
+        if not os.path.islink(driver_link):
+            continue
+        driver = os.path.basename(os.path.realpath(driver_link))
+        if driver != "nvidia":
+            continue
+        status = _text(os.path.join(dev_path, "power", "runtime_status"))
+        active = status in (None, "active", "unsupported")
+        devices.append(
+            {
+                "pci": entry,
+                "driver": driver,
+                "runtime_status": status,
+                "active": active,
+                "boot_vga": _int(os.path.join(dev_path, "boot_vga")),
+            }
+        )
+    return devices
+
+
 #: Name of the privileged helper installed next to the app.
 RESCAN_HELPER_NAME = "rescan-pci"
 
@@ -271,7 +316,21 @@ class Monitor:
                     return value / 1000.0, "CPU"
         return None, "CPU"
 
-    def gpu_temps(self) -> dict[str, Any]:
+    def _read_nvidia(self) -> dict[str, Any] | None:
+        devices = [dev for dev in nvidia_pci_devices() if dev["active"]]
+        if not devices:
+            return None
+        target = next((dev for dev in devices if dev.get("boot_vga") != 1), devices[0])
+        sample = nvml.read_gpu(target["pci"])
+        if sample is None:
+            return None
+        return {
+            "pci": target["pci"],
+            "temp": sample.get("temp"),
+            "power_w": sample.get("power_w"),
+        }
+
+    def gpu_temps(self, nvidia_sample: Any = _UNSET) -> dict[str, Any]:
         result: dict[str, Any] = {"igpu": None, "dgpu": None, "dgpu_junction": None, "pci": {}}
         for path in self._hwmon.get("amdgpu", []):
             pci = _pci_address(path)
@@ -299,6 +358,18 @@ class Monitor:
                     result["pci"][pci] = {"igpu": False, "edge": edge, "junction": None}
                 result["dgpu"] = edge / 1000.0
                 break
+        if result["dgpu"] is None:
+            sample = self._read_nvidia() if nvidia_sample is _UNSET else nvidia_sample
+            if isinstance(sample, dict) and sample.get("temp") is not None:
+                temp = float(sample["temp"])
+                result["dgpu"] = temp
+                pci = sample.get("pci")
+                if pci:
+                    result["pci"][pci] = {
+                        "igpu": False,
+                        "edge": int(round(temp * 1000)),
+                        "junction": None,
+                    }
         return result
 
     def fans(self) -> dict[str, int | None]:
@@ -332,7 +403,7 @@ class Monitor:
                     result[f"{target}_pwm"] = pwm
         return result
 
-    def gpu_power_w(self) -> float | None:
+    def gpu_power_w(self, nvidia_sample: Any = _UNSET) -> float | None:
         """Read the active GPU's package power from hwmon, if exposed."""
         fallback: int | None = None
         for path in self._hwmon.get("amdgpu", []):
@@ -345,6 +416,9 @@ class Monitor:
                 return value / 1_000_000
             if fallback is None:
                 fallback = value
+        sample = self._read_nvidia() if nvidia_sample is _UNSET else nvidia_sample
+        if isinstance(sample, dict) and sample.get("power_w") is not None:
+            return float(sample["power_w"])
         return fallback / 1_000_000 if fallback is not None else None
 
     def battery(self) -> dict[str, Any] | None:
@@ -403,14 +477,15 @@ class Monitor:
     # -- aggregate ------------------------------------------------------
     def snapshot(self) -> dict[str, Any]:
         cpu_temp, cpu_label = self.cpu_temp()
+        nvidia_sample = self._read_nvidia()
         return {
             "cpu_temp": cpu_temp,
             "cpu_label": cpu_label,
-            "gpu": self.gpu_temps(),
+            "gpu": self.gpu_temps(nvidia_sample=nvidia_sample),
             "fans": self.fans(),
             "battery": self.battery(),
             "ac_online": _ac_online(),
-            "gpu_power": self.gpu_power_w(),
+            "gpu_power": self.gpu_power_w(nvidia_sample=nvidia_sample),
             "cpu_load": self.cpu_load(),
             "cpu_mhz": self.cpu_mhz(),
         }

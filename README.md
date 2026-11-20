@@ -27,15 +27,16 @@ System Control Interface on Windows.
 | GPU modes (Eco / Standard / Ultimate / Optimized) | `cardwire` + asusd | Eco/Standard switch at runtime with no reboot; Ultimate queues the firmware MUX |
 | Per-app dGPU launch | `cardwire launch` + Smart mode | Settings → dGPU Apps → "Keep the dGPU blocked (Smart)": the dGPU stays off except for apps launched from that list |
 | dGPU disable + GPU MUX | `asusd` → firmware attributes | Queued; requires a reboot. Settings → Rescan dGPU re-enumerates PCI after ECO |
-| Panel overdrive | `asusd` → firmware attributes | Tied to the 120Hz + OD button |
-| Refresh rate + Auto | `kscreen-doctor` (KDE Plasma) | Auto switches 60/max on AC changes while running |
+| Panel overdrive | `asusd` → firmware attributes | Tied to the max-Hz + OD button, or shown as a toggle when refresh switching is unavailable |
+| Refresh rate + Auto | `kscreen-doctor` (KDE), Mutter D-Bus (GNOME), `hyprctl`/`wlr-randr` (wlroots) | Auto switches 60/max on AC changes while running |
 | Keyboard lighting | `asusd` → `xyz.ljones.Aura` | Brightness, effect mode, colour and animation speed |
+| Slash Lighting & AniMe Matrix | `asusd` → `xyz.ljones.Slash` / `xyz.ljones.Anime` | Shown automatically on supported models; power-state options in Settings |
 | Battery charge limit / one-shot full charge | `asusd` | Restored by asusd after suspend/reboot |
 | Boot POST sound | `asusd` → firmware attributes | Settings → Startup toggle |
 | Battery readout | sysfs | Charge %, charge/discharge watts and rough time remaining in the window and tray tooltip; health, capacity and cycles in Settings |
 | Fn / ROG key mappings | evdev (passive read) | Map keys in Settings → Hotkeys; needs the bundled udev rule |
 | Opens next to the taskbar | KWin scripting (Plasma) | Uses the work area, so top/bottom/left/right panels all work |
-| Live temperatures and fan percentages | sysfs / `/proc` | dGPU asleep is reported honestly |
+| Live temperatures and fan percentages | sysfs / `/proc` / NVML | dGPU asleep is reported honestly without waking suspended NVIDIA GPUs |
 | Tray icon, profile and GPU quick switch | StatusNotifierItem + dbusmenu | Silent/Balanced/Turbo and Eco/Standard/Smart/Optimized from the menu; live tooltip; KDE Plasma, GNOME needs an extension |
 | Single-instance window routing | GApplication command line | `--page`/`--minimized` reach the running window |
 | Window geometry and start-hidden | `~/.config/ghelper-linux/ui.json` | Size, maximised state and tray startup |
@@ -49,20 +50,22 @@ System Control Interface on Windows.
 - Python 3.10+, PyGObject, GTK 4 and libadwaita.
 - [cardwire](https://github.com/OpenGamingCollective/cardwire) + `cardwired`
   for GPU modes (optional but recommended).
-- KDE Plasma for refresh-rate switching and window placement; other desktops
-  get the rest of the app and a clear "not available" note.
+- KDE Plasma (`kscreen-doctor`) for window placement and refresh-rate switching;
+  GNOME (`org.gnome.Mutter.DisplayConfig`), Hyprland (`hyprctl`) and wlroots
+  compositors (`wlr-randr`) are also supported for refresh-rate switching.
 
 ### Other desktops
 
-Everything except the two Plasma-specific features works on GNOME and wlroots
-compositors, because they go through `asusd`, `cardwire` and sysfs:
+Everything except KWin window placement works on GNOME and wlroots
+compositors, because the rest goes through `asusd`, `cardwire`, Mutter/wlroots
+and sysfs:
 
 | Feature | GNOME | wlroots (sway, Hyprland) |
 |---|---|---|
-| Profiles, fan curves, PPT, Aura, battery, boot sound | Yes | Yes |
+| Profiles, fan curves, PPT, Aura, Slash/AniMe, battery, boot sound | Yes | Yes |
 | GPU modes, Smart mode and per-app dGPU launch | Yes | Yes |
 | Fn / ROG hotkeys | Yes, with the bundled udev rule | Yes, with the bundled udev rule |
-| Refresh rate and Panel Overdrive row | Hidden/disabled: `kscreen-doctor` needs KWin | Same |
+| Refresh rate and Panel Overdrive row | Yes, via `org.gnome.Mutter.DisplayConfig` | Yes, via `hyprctl` or `wlr-randr` (Overdrive also works alone via `asusd`) |
 | Window and overlay placement | No: GNOME does not let apps position windows; the overlay still appears, centred | Same |
 | Tray icon | Needs the AppIndicator extension | Needs a StatusNotifier host (`waybar`, `swaybar` via `snixembed`) |
 
@@ -324,13 +327,17 @@ Source layout:
 
 ```
 src/ghelper/
+  backend/anime.py      AniMe Matrix control through asusd
   backend/asusd.py      D-Bus wrapper (profiles, fans, battery, armoury)
   backend/cardwire.py   CLI wrapper (modes, GPU list, block/unblock)
   backend/aura.py       keyboard lighting through asusd
+  backend/dbus_introspect.py  D-Bus introspection discovery helper
   backend/hotkeys.py    passive evdev reader for Fn / ROG keys
   backend/kwin.py       places the window next to the KDE panel
+  backend/nvml.py       ctypes reader for active NVIDIA dGPUs (libnvidia-ml.so.1)
+  backend/slash.py      ROG Slash LED bar control through asusd
   backend/system.py     sysfs telemetry (temps, fans, battery, load)
-  backend/display.py    kscreen-doctor refresh-rate control
+  backend/display.py    refresh-rate control (KDE, GNOME, Hyprland, wlroots)
   ui/main_view.py       G-Helper-style main page
   ui/fans_window.py     Fans + Power window (PPT + fan charts)
   ui/settings_window.py power, firmware GPU, hotkeys, startup
@@ -393,8 +400,10 @@ validation and the RPM and DEB builds.
 
 - Temperatures and fan speeds come from hwmon. AMD CPUs (`k10temp`) and GPUs
   (`amdgpu`) are fully supported; Intel CPUs work through `coretemp`. NVIDIA
-  dGPUs are only reported when the open `nouveau` driver exposes hwmon — with
-  the proprietary driver the dGPU temperature stays blank.
+  dGPUs report temperature through `nouveau` hwmon or, on the proprietary
+  driver, through `libnvidia-ml.so.1` (NVML) when `runtime_status` is active —
+  when runtime-suspended, the dGPU stays asleep so battery is not drained, and
+  its temperature reads blank.
 - The iGPU/dGPU split relies on the kernel's `boot_vga` flag, which is the
   reliable signal on hybrid laptops in their normal (iGPU) boot. In a
   dGPU-only MUX boot the two can be reported the other way round.
@@ -405,8 +414,7 @@ validation and the RPM and DEB builds.
 
 **Near term**
 
-- GNOME / wlroots refresh-rate backends and window placement
-- Anime Matrix and Slash lighting (keyboard Aura lighting is already supported)
+- GNOME / wlroots window placement
 
 **Next milestone**
 
@@ -419,7 +427,6 @@ validation and the RPM and DEB builds.
 - BIOS and driver update scraping
 - Metrics overlay (Wayland layer-shell)
 - ASUS mice, keyboards and headset HID support
-- Localisation
 
 ## Credits
 

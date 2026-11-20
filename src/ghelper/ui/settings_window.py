@@ -8,11 +8,13 @@ import os
 from pathlib import Path
 
 from .. import APP_VERSION
+from ..backend import anime as anime_mod
 from ..backend import asusd as asusd_mod
 from ..backend import autostart
 from ..backend import cardwire as cw
 from ..backend import gpu_policy
 from ..backend import hotkeys as hotkeys_mod
+from ..backend import slash as slash_mod
 from ..backend.system import dgpu_present, machine_name, rescan_pci
 from ..deps import Adw, Gio, GLib, Gtk, Pango
 from .format import battery_line
@@ -33,6 +35,11 @@ class SettingsWindow(Adw.Window):
         self.window = window
         self.asusd = window.asusd
         self.settings = window.settings
+        self.slash = slash_mod.Slash()
+        self.anime = anime_mod.Anime()
+        self._anime_anims: dict[str, int] = {
+            stage: 0 for stage in anime_mod.STAGE_ORDER
+        }
         self._loading = False
         self._refresh_pending = False
         self.connect("destroy", self._on_destroy)
@@ -57,6 +64,8 @@ class SettingsWindow(Adw.Window):
         self._build_gpu_apps(body)
         self._build_battery(body)
         self._build_hotkeys(body)
+        self._build_slash(body)
+        self._build_anime(body)
         self._build_window(body)
         self._build_about(body)
 
@@ -307,6 +316,52 @@ class SettingsWindow(Adw.Window):
         section.add(row)
         body.append(section)
 
+    def _build_slash(self, body: Gtk.Box) -> None:
+        self._slash_section = Section("gh-power-symbolic", "Slash Lighting")
+        self._slash_option_rows: dict[str, ToggleRow] = {}
+        options = (
+            ("ShowOnBoot", "Show on boot"),
+            ("ShowOnShutdown", "Show on shutdown"),
+            ("ShowOnSleep", "Show on sleep"),
+            ("ShowOnBattery", "Show on battery"),
+            ("ShowOnLidClosed", "Show when lid is closed"),
+            ("ShowBatteryWarning", "Low battery warning"),
+        )
+        for prop_name, title in options:
+            row = ToggleRow(title)
+            row.switch.connect(
+                "notify::active", self._on_slash_option, prop_name
+            )
+            self._slash_option_rows[prop_name] = row
+            self._slash_section.add(row)
+        self._slash_section.set_visible(False)
+        body.append(self._slash_section)
+
+    def _build_anime(self, body: Gtk.Box) -> None:
+        self._anime_section = Section("gh-screen-symbolic", "AniMe Matrix")
+        self._anime_option_rows: dict[str, ToggleRow] = {}
+        options = (
+            ("OffWhenUnplugged", "Turn off on battery"),
+            ("OffWhenSuspended", "Turn off on suspend"),
+            ("OffWhenLidClosed", "Turn off when lid is closed"),
+        )
+        for prop_name, title in options:
+            row = ToggleRow(title)
+            row.switch.connect(
+                "notify::active", self._on_anime_option, prop_name
+            )
+            self._anime_option_rows[prop_name] = row
+            self._anime_section.add(row)
+
+        self._anime_stage_combos: dict[str, Gtk.DropDown] = {}
+        for stage, stage_label, items in anime_mod.BUILTIN_STAGES:
+            combo = dropdown([label for _idx, _name, label in items])
+            combo.connect("notify::selected", self._on_anime_stage_selected, stage)
+            self._anime_stage_combos[stage] = combo
+            self._anime_section.add(self._labeled(f"{stage_label} animation", combo))
+        self._anime_section.set_visible(False)
+        body.append(self._anime_section)
+
     def _build_window(self, body: Gtk.Box) -> None:
         section = Section("gh-power-symbolic", "Startup")
         self._boot_sound_switch = ToggleRow(
@@ -405,6 +460,18 @@ class SettingsWindow(Adw.Window):
         data["hotkeys"] = hotkeys_mod.probe()
         data["battery"] = self.window.monitor.battery()
         data["dgpu_present"] = dgpu_present()
+        data["slash"] = None
+        try:
+            if self.slash.available:
+                data["slash"] = self.slash.state()
+        except Exception:  # noqa: BLE001
+            data["slash"] = None
+        data["anime"] = None
+        try:
+            if self.anime.available:
+                data["anime"] = self.anime.state()
+        except Exception:  # noqa: BLE001
+            data["anime"] = None
         return data
 
     def _apply(self, data: dict) -> None:
@@ -461,6 +528,8 @@ class SettingsWindow(Adw.Window):
             self._pending_value.set_value(
                 "reboot required" if data.get("pending") else "none"
             )
+            self._apply_slash_settings(data.get("slash"))
+            self._apply_anime_settings(data.get("anime"))
         finally:
             self._loading = False
         self._epp_value.set_value(data.get("epp") or "not exposed")
@@ -656,9 +725,87 @@ class SettingsWindow(Adw.Window):
 
         self.window.run(work, done=lambda _r: self.refresh(), error=self._failed)
 
+    def _apply_slash_settings(self, state: dict | None) -> None:
+        if not state:
+            self._slash_section.set_visible(False)
+            return
+        self._slash_section.set_visible(True)
+        mapping = {
+            "ShowOnBoot": "show_on_boot",
+            "ShowOnShutdown": "show_on_shutdown",
+            "ShowOnSleep": "show_on_sleep",
+            "ShowOnBattery": "show_on_battery",
+            "ShowOnLidClosed": "show_on_lid_closed",
+            "ShowBatteryWarning": "show_battery_warning",
+        }
+        for prop_name, row in self._slash_option_rows.items():
+            row.set_active(bool(state.get(mapping[prop_name], False)))
+
+    def _apply_anime_settings(self, state: dict | None) -> None:
+        if not state:
+            self._anime_section.set_visible(False)
+            return
+        self._anime_section.set_visible(True)
+        mapping = {
+            "OffWhenUnplugged": "off_when_unplugged",
+            "OffWhenSuspended": "off_when_suspended",
+            "OffWhenLidClosed": "off_when_lid_closed",
+        }
+        for prop_name, row in self._anime_option_rows.items():
+            row.set_active(bool(state.get(mapping[prop_name], False)))
+        anims = state.get("builtin_animations") or {}
+        for stage in anime_mod.STAGE_ORDER:
+            idx = int(anims.get(stage, 0))
+            self._anime_anims[stage] = idx
+            combo = self._anime_stage_combos[stage]
+            if 0 <= idx < len(anime_mod.STAGE_BY_KEY[stage]):
+                combo.set_selected(idx)
+
     def _apply_queued(self) -> None:
         self.window.run(
             self.asusd.apply_queued_gpu,
+            done=lambda _r: self.refresh(),
+            error=self._failed,
+        )
+
+    def _on_slash_option(
+        self, switch: Gtk.Switch, _param, prop_name: str
+    ) -> None:
+        if self._loading:
+            return
+        enabled = switch.get_active()
+        self.window.run(
+            lambda: self.slash.set_option(prop_name, enabled),
+            done=lambda _r: self.refresh(),
+            error=self._failed,
+        )
+
+    def _on_anime_option(
+        self, switch: Gtk.Switch, _param, prop_name: str
+    ) -> None:
+        if self._loading:
+            return
+        enabled = switch.get_active()
+        self.window.run(
+            lambda: self.anime.set_option(prop_name, enabled),
+            done=lambda _r: self.refresh(),
+            error=self._failed,
+        )
+
+    def _on_anime_stage_selected(
+        self, row: Gtk.DropDown, _param, stage: str
+    ) -> None:
+        if self._loading:
+            return
+        index = int(row.get_selected())
+        if not (0 <= index < len(anime_mod.STAGE_BY_KEY[stage])):
+            return
+        self._anime_anims[stage] = index
+        vals = dict(self._anime_anims)
+        self.window.run(
+            lambda: self.anime.set_builtin_animations(
+                vals["boot"], vals["awake"], vals["sleep"], vals["shutdown"]
+            ),
             done=lambda _r: self.refresh(),
             error=self._failed,
         )

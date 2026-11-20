@@ -118,6 +118,9 @@ class WindowSmokeTests(unittest.TestCase):
         self.assertEqual(self.window.get_title(), "G-Helper")
         self.assertEqual(len(view._gpu_buttons), 4)
         self.assertIsNotNone(view.battery_scale)
+        self.assertIsNotNone(view._overdrive_row)
+        self.assertIsNotNone(view.slash_section)
+        self.assertIsNotNone(view.anime_section)
         # The status line is filled from telemetry or left empty when sensors
         # are missing; either way it must be a label with text support.
         self.assertIsNotNone(view.perf_section.header._live)
@@ -134,6 +137,8 @@ class WindowSmokeTests(unittest.TestCase):
         self.assertIsNotNone(page._boot_sound_switch)
         self.assertIsNotNone(page._hidden_switch)
         self.assertIsNotNone(page._smart_switch)
+        self.assertIsNotNone(page._slash_section)
+        self.assertIsNotNone(page._anime_section)
 
     def test_fans_window_builds(self) -> None:
         self.window.open_fans_window()

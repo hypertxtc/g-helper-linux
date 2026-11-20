@@ -55,6 +55,9 @@ class MainLoopOrderTests(unittest.TestCase):
     def test_importing_the_tray_sets_the_default_loop(self) -> None:
         self.assertEqual(default_loop_state("ghelper.tray"), "set")
 
+    def test_importing_display_sets_the_default_loop(self) -> None:
+        self.assertEqual(default_loop_state("ghelper.backend.display"), "set")
+
 
 if __name__ == "__main__":
     unittest.main()

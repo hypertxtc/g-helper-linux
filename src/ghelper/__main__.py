@@ -16,9 +16,11 @@ def _check() -> int:
     """Print a JSON backend report; useful on new machines and in bug reports."""
     import os
 
+    from .backend import anime as anime_mod
     from .backend import asusd as asusd_mod
-    from .backend import cardwire, display, hotkeys
-    from .backend.system import Monitor, machine_name, rescan_helper
+    from .backend import cardwire, display, hotkeys, nvml
+    from .backend import slash as slash_mod
+    from .backend.system import Monitor, machine_name, nvidia_pci_devices, rescan_helper
 
     report: dict = {"machine": machine_name(), "version": APP_VERSION}
     helper = rescan_helper()
@@ -26,8 +28,8 @@ def _check() -> int:
         "helper": str(helper) if helper is not None else None,
         "libexec_override": os.environ.get("GHELPER_LIBEXECDIR") or None,
     }
-    client = asusd_mod.Asusd()
     try:
+        client = asusd_mod.Asusd()
         client.connect()
         report["asusd"] = {
             "available": True,
@@ -59,7 +61,10 @@ def _check() -> int:
     except Exception as exc:  # noqa: BLE001
         report["cardwire"] = {"available": cardwire.available(), "error": str(exc)}
 
-    report["display"] = {"available": display.available()}
+    report["display"] = {
+        "available": display.available(),
+        "backend": display.backend_name(),
+    }
     if report["display"]["available"]:
         try:
             panel = display.primary_panel()
@@ -71,6 +76,31 @@ def _check() -> int:
             report["display"]["error"] = str(exc)
     else:
         report["display"]["reason"] = display.unavailable_reason()
+
+    report["nvidia"] = {
+        "nvml_available": nvml.available(),
+        "devices": nvidia_pci_devices(),
+    }
+
+    slash = slash_mod.Slash()
+    try:
+        report["slash"] = (
+            {"available": True, **slash.state()}
+            if slash.available
+            else {"available": False}
+        )
+    except Exception as exc:  # noqa: BLE001
+        report["slash"] = {"available": False, "error": str(exc)}
+
+    anime = anime_mod.Anime()
+    try:
+        report["anime"] = (
+            {"available": True, **anime.state()}
+            if anime.available
+            else {"available": False}
+        )
+    except Exception as exc:  # noqa: BLE001
+        report["anime"] = {"available": False, "error": str(exc)}
 
     report["sensors"] = Monitor().snapshot()
     report["hotkeys"] = hotkeys.probe()

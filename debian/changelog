@@ -1,3 +1,15 @@
+ghelper-linux (0.4.0-1) unstable; urgency=medium
+
+  * Support refresh-rate switching on GNOME (Mutter D-Bus), Hyprland
+    (hyprctl) and wlroots compositors (wlr-randr), and decouple Panel
+    Overdrive when refresh-rate control is unavailable.
+  * Read temperature and power from active proprietary NVIDIA dGPUs via
+    NVML without waking runtime-suspended GPUs.
+  * Add ROG Slash Lighting and AniMe Matrix controls via asusd D-Bus in
+    the main window, Settings and --check diagnostics.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Fri, 20 Nov 2026 12:57:00 -0500
+
 ghelper-linux (0.3.2-1) unstable; urgency=medium
 
   * Attach the GLib main loop before the first session-bus connection.  The

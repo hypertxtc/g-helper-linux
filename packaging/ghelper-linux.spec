@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.3.2}
+Version:        %{?gh_version}%{!?gh_version:0.4.0}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,6 +64,15 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.0-1
+- Add GNOME (Mutter D-Bus), Hyprland (hyprctl) and wlroots (wlr-randr)
+  refresh-rate backends, and decouple Panel Overdrive so it works on any
+  desktop
+- Add proprietary NVIDIA dGPU telemetry via NVML (ctypes) without waking
+  runtime-suspended GPUs
+- Add ROG Slash Lighting and AniMe Matrix control via asusd D-Bus
+  introspection, with main-window and Settings UI plus --check diagnostics
+
 * Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.3.2-1
 - Attach the GLib main loop before the first session-bus connection, so the
   KWin helper loading at startup can no longer break the tray icon

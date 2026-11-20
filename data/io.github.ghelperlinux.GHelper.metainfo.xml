@@ -62,6 +62,17 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.4.0" date="2026-11-20">
+      <description>
+        <p>Multi-desktop display control, NVIDIA telemetry and lid lighting.</p>
+        <ul>
+          <li>Refresh-rate switching now supports GNOME (Mutter DisplayConfig D-Bus), Hyprland (hyprctl) and wlroots compositors (wlr-randr) alongside KDE Plasma.</li>
+          <li>Panel Overdrive is decoupled so it can still be toggled when refresh-rate control is unavailable.</li>
+          <li>Active proprietary NVIDIA dGPUs now report temperature and power through libnvidia-ml without waking runtime-suspended GPUs.</li>
+          <li>Added ROG Slash Lighting and AniMe Matrix controls in the main window and Settings, shown automatically on supported models.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.2" date="2026-11-20">
       <description>
         <p>Tray icon regression fix.</p>

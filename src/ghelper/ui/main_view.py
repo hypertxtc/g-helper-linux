@@ -7,12 +7,14 @@ from __future__ import annotations
 import logging
 
 from .. import APP_VERSION
+from ..backend import anime as anime_mod
 from ..backend import asusd as asusd_mod
 from ..backend import aura as aura_mod
 from ..backend import autostart
 from ..backend import cardwire as cw
 from ..backend import display
 from ..backend import gpu_policy
+from ..backend import slash as slash_mod
 from ..backend.system import ac_online, dgpu_present
 from ..deps import Adw, Gdk, GLib, Gtk
 from .format import battery_line
@@ -21,6 +23,7 @@ from .widgets import (
     BatteryScale,
     ModeButton,
     Section,
+    ToggleRow,
     dropdown,
     flat_button,
     set_selected,
@@ -56,6 +59,9 @@ class MainView(Gtk.Box):
         self.asusd = window.asusd
         self.settings = window.settings
         self.aura = aura_mod.Aura()
+        self.slash = slash_mod.Slash()
+        self.anime = anime_mod.Anime()
+        self._slash_brightness_timeout = 0
         self._loading = False
         self._refresh_pending = False
         self._profile = window.current_profile
@@ -82,9 +88,12 @@ class MainView(Gtk.Box):
         self._build_gpu()
         self._build_screen()
         self._build_keyboard()
+        self._build_slash()
+        self._build_anime()
         self._build_battery()
         self._build_footer()
 
+        self.connect("destroy", self._on_destroy)
         self.refresh()
 
     # -- construction ----------------------------------------------------
@@ -126,6 +135,7 @@ class MainView(Gtk.Box):
     def _build_screen(self) -> None:
         self.screen_section = Section("gh-screen-symbolic", "Laptop Screen")
         grid = Gtk.Grid(column_spacing=6, column_homogeneous=True)
+        self._screen_grid = grid
         self._screen_buttons: dict[str, Gtk.Button] = {}
         for column, key in enumerate(("auto", "min", "max")):
             label = {"auto": "Auto", "min": "60Hz", "max": "120Hz + OD"}[key]
@@ -136,6 +146,13 @@ class MainView(Gtk.Box):
             grid.attach(button, column, 0, 1, 1)
             self._screen_buttons[key] = button
         self.screen_section.add(grid)
+        self._overdrive_row = ToggleRow(
+            "Panel Overdrive",
+            subtitle="Faster pixel response on the internal display.",
+        )
+        self._overdrive_row.switch.connect("notify::active", self._on_overdrive_toggled)
+        self._overdrive_row.set_visible(False)
+        self.screen_section.add(self._overdrive_row)
         self.append(self.screen_section)
 
     def _build_keyboard(self) -> None:
@@ -179,6 +196,73 @@ class MainView(Gtk.Box):
 
         self.keyboard_section.set_visible(False)
         self.append(self.keyboard_section)
+
+    def _build_slash(self) -> None:
+        self.slash_section = Section("gh-power-symbolic", "Slash Lighting")
+        self._slash_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+        self._slash_switch.connect("notify::active", self._on_slash_enabled)
+        self.slash_section.header.add_suffix(self._slash_switch)
+
+        self._slash_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self._slash_mode_dropdown = dropdown(
+            [label for _code, _name, label in slash_mod.MODES]
+        )
+        self._slash_mode_dropdown.connect("notify::selected", self._on_slash_mode)
+        self._slash_interval_dropdown = dropdown([f"Interval {i}" for i in range(6)])
+        self._slash_interval_dropdown.set_hexpand(False)
+        self._slash_interval_dropdown.connect(
+            "notify::selected", self._on_slash_interval
+        )
+        row.append(self._slash_mode_dropdown)
+        row.append(self._slash_interval_dropdown)
+        self._slash_body.append(row)
+
+        bright_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        bright_title = Gtk.Label(label="Brightness", xalign=0.0)
+        bright_title.add_css_class("gh-live")
+        self._slash_brightness_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 0, 255, 1
+        )
+        self._slash_brightness_scale.set_draw_value(False)
+        self._slash_brightness_scale.set_hexpand(True)
+        self._slash_brightness_scale.add_css_class("gh-scale")
+        self._slash_brightness_scale.connect(
+            "value-changed", self._on_slash_brightness_changed
+        )
+        self._slash_brightness_label = Gtk.Label(label="0%", xalign=1.0)
+        self._slash_brightness_label.add_css_class("gh-live")
+        bright_row.append(bright_title)
+        bright_row.append(self._slash_brightness_scale)
+        bright_row.append(self._slash_brightness_label)
+        self._slash_body.append(bright_row)
+
+        self.slash_section.add(self._slash_body)
+        self.slash_section.set_visible(False)
+        self.append(self.slash_section)
+
+    def _build_anime(self) -> None:
+        self.anime_section = Section("gh-screen-symbolic", "AniMe Matrix")
+        self._anime_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+        self._anime_switch.connect("notify::active", self._on_anime_enabled)
+        self.anime_section.header.add_suffix(self._anime_switch)
+
+        self._anime_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self._anime_brightness_dropdown = dropdown(
+            [label for _lvl, _name, label in anime_mod.BRIGHTNESS_LEVELS]
+        )
+        self._anime_brightness_dropdown.connect(
+            "notify::selected", self._on_anime_brightness
+        )
+        self._anime_builtins_check = Gtk.CheckButton(label="Built-in animations")
+        self._anime_builtins_check.add_css_class("gh-check")
+        self._anime_builtins_check.connect("toggled", self._on_anime_builtins)
+        self._anime_row.append(self._anime_brightness_dropdown)
+        self._anime_row.append(self._anime_builtins_check)
+
+        self.anime_section.add(self._anime_row)
+        self.anime_section.set_visible(False)
+        self.append(self.anime_section)
 
     def _build_battery(self) -> None:
         self.battery_section = Section("gh-battery-symbolic", "Battery Charge Limit")
@@ -243,6 +327,8 @@ class MainView(Gtk.Box):
             "display_available": display.available(),
             "display_error": None,
             "aura": None,
+            "slash": None,
+            "anime": None,
             "limit": None,
             "pending": False,
         }
@@ -293,6 +379,18 @@ class MainView(Gtk.Box):
             data["aura"] = None
 
         try:
+            if self.slash.available:
+                data["slash"] = self.slash.state()
+        except Exception:  # noqa: BLE001
+            data["slash"] = None
+
+        try:
+            if self.anime.available:
+                data["anime"] = self.anime.state()
+        except Exception:  # noqa: BLE001
+            data["anime"] = None
+
+        try:
             data["limit"] = self.asusd.charge_limit()
         except Exception:  # noqa: BLE001
             data["limit"] = None
@@ -311,6 +409,8 @@ class MainView(Gtk.Box):
         self._apply_gpu(data)
         self._apply_screen(data)
         self._apply_keyboard(data)
+        self._apply_slash(data)
+        self._apply_anime(data)
         self._apply_battery(data)
         self._startup.set_active(autostart.enabled())
 
@@ -348,6 +448,22 @@ class MainView(Gtk.Box):
         od_on = bool(int(overdrive.get("CurrentValue", 0))) if overdrive else False
 
         if panel is None or mode is None or not rates:
+            if overdrive is not None:
+                self._screen_grid.set_visible(False)
+                self._overdrive_row.set_visible(True)
+                self._loading = True
+                try:
+                    self._overdrive_row.set_active(od_on)
+                finally:
+                    self._loading = False
+                self.screen_section.set_title(
+                    "Laptop Screen: Overdrive On" if od_on else "Laptop Screen"
+                )
+                self.screen_section.set_live(data.get("display_error") or "")
+                return
+
+            self._screen_grid.set_visible(True)
+            self._overdrive_row.set_visible(False)
             self.screen_section.set_title("Laptop Screen")
             self.screen_section.set_live(data.get("display_error") or "")
             for button in self._screen_buttons.values():
@@ -355,10 +471,14 @@ class MainView(Gtk.Box):
             self._screen_buttons["auto"].set_label("Auto")
             return
 
+        self._screen_grid.set_visible(True)
+        self._overdrive_row.set_visible(False)
         max_rate = max(rates)
         min_rate = min(rates)
         self._screen_buttons["min"].set_label(f"{min_rate:.0f}Hz")
-        self._screen_buttons["max"].set_label(f"{max_rate:.0f}Hz + OD")
+        self._screen_buttons["max"].set_label(
+            f"{max_rate:.0f}Hz + OD" if overdrive is not None else f"{max_rate:.0f}Hz"
+        )
         self._screen_buttons["auto"].set_label("Auto")
 
         if self._screen_auto:
@@ -426,6 +546,47 @@ class MainView(Gtk.Box):
                 color.blue = blue / 255
                 color.alpha = 1.0
                 self._color_button.set_rgba(color)
+        finally:
+            self._loading = False
+
+    def _apply_slash(self, data: dict) -> None:
+        state = data.get("slash")
+        if not state:
+            self.slash_section.set_visible(False)
+            return
+        self.slash_section.set_visible(True)
+        enabled = bool(state.get("enabled", False))
+        self._loading = True
+        try:
+            self._slash_switch.set_active(enabled)
+            mode = int(state.get("mode", slash_mod.DEFAULT_MODE))
+            if mode in slash_mod.MODE_IDS:
+                self._slash_mode_dropdown.set_selected(slash_mod.MODE_IDS.index(mode))
+            interval = max(0, min(5, int(state.get("interval", 0))))
+            self._slash_interval_dropdown.set_selected(interval)
+            brightness = max(0, min(255, int(state.get("brightness", 0))))
+            self._slash_brightness_scale.set_value(brightness)
+            self._slash_brightness_label.set_text(f"{round(brightness / 255 * 100)}%")
+            self._slash_body.set_sensitive(enabled)
+        finally:
+            self._loading = False
+
+    def _apply_anime(self, data: dict) -> None:
+        state = data.get("anime")
+        if not state:
+            self.anime_section.set_visible(False)
+            return
+        self.anime_section.set_visible(True)
+        enabled = bool(state.get("enabled", False))
+        self._loading = True
+        try:
+            self._anime_switch.set_active(enabled)
+            brightness = max(0, min(3, int(state.get("brightness", 0))))
+            self._anime_brightness_dropdown.set_selected(brightness)
+            self._anime_builtins_check.set_active(
+                bool(state.get("builtins_enabled", False))
+            )
+            self._anime_row.set_sensitive(enabled)
         finally:
             self._loading = False
 
@@ -784,6 +945,18 @@ class MainView(Gtk.Box):
             error=self.window.show_error,
         )
 
+    def _on_overdrive_toggled(self, switch: Gtk.Switch, _param) -> None:
+        if self._loading:
+            return
+        enabled = switch.get_active()
+        self.window.run(
+            lambda: self.asusd.set_armoury(
+                asusd_mod.ATTR_PANEL_OVERDRIVE, 1 if enabled else 0
+            ),
+            done=lambda _r: self.refresh(),
+            error=self.window.show_error,
+        )
+
     # -- keyboard actions -------------------------------------------------
     def _on_aura_mode(self, row: Gtk.DropDown, _param) -> None:
         if self._loading:
@@ -864,6 +1037,89 @@ class MainView(Gtk.Box):
             error=self.window.show_error,
         )
 
+    # -- slash / anime actions --------------------------------------------
+    def _on_slash_enabled(self, switch: Gtk.Switch, _param) -> None:
+        if self._loading:
+            return
+        enabled = switch.get_active()
+        self._slash_body.set_sensitive(enabled)
+        self.window.run(
+            lambda: self.slash.set_enabled(enabled),
+            done=lambda _r: self.refresh(),
+            error=self.window.show_error,
+        )
+
+    def _on_slash_mode(self, row: Gtk.DropDown, _param) -> None:
+        if self._loading:
+            return
+        index = row.get_selected()
+        if 0 <= index < len(slash_mod.MODE_IDS):
+            mode = slash_mod.MODE_IDS[index]
+            self.window.run(
+                lambda: self.slash.set_mode(mode),
+                error=self.window.show_error,
+            )
+
+    def _on_slash_interval(self, row: Gtk.DropDown, _param) -> None:
+        if self._loading:
+            return
+        index = row.get_selected()
+        if 0 <= index <= 5:
+            self.window.run(
+                lambda: self.slash.set_interval(index),
+                error=self.window.show_error,
+            )
+
+    def _on_slash_brightness_changed(self, scale: Gtk.Scale) -> None:
+        value = int(round(scale.get_value()))
+        self._slash_brightness_label.set_text(f"{round(value / 255 * 100)}%")
+        if self._loading:
+            return
+        if self._slash_brightness_timeout:
+            GLib.source_remove(self._slash_brightness_timeout)
+        self._slash_brightness_timeout = GLib.timeout_add(
+            250, self._commit_slash_brightness
+        )
+
+    def _commit_slash_brightness(self) -> bool:
+        self._slash_brightness_timeout = 0
+        value = int(round(self._slash_brightness_scale.get_value()))
+        self.window.run(
+            lambda: self.slash.set_brightness(value),
+            error=self.window.show_error,
+        )
+        return False
+
+    def _on_anime_enabled(self, switch: Gtk.Switch, _param) -> None:
+        if self._loading:
+            return
+        enabled = switch.get_active()
+        self._anime_row.set_sensitive(enabled)
+        self.window.run(
+            lambda: self.anime.set_enabled(enabled),
+            done=lambda _r: self.refresh(),
+            error=self.window.show_error,
+        )
+
+    def _on_anime_brightness(self, row: Gtk.DropDown, _param) -> None:
+        if self._loading:
+            return
+        index = row.get_selected()
+        if 0 <= index < len(anime_mod.BRIGHTNESS_LEVELS):
+            self.window.run(
+                lambda: self.anime.set_brightness(index),
+                error=self.window.show_error,
+            )
+
+    def _on_anime_builtins(self, button: Gtk.CheckButton) -> None:
+        if self._loading:
+            return
+        enabled = button.get_active()
+        self.window.run(
+            lambda: self.anime.set_builtins_enabled(enabled),
+            error=self.window.show_error,
+        )
+
     # -- battery actions --------------------------------------------------
     def _on_battery_changed(self, value: int) -> None:
         self._limit_label.set_text(f"Limit {value}%")
@@ -890,5 +1146,10 @@ class MainView(Gtk.Box):
             button.set_active(autostart.enabled())
 
     # -- misc -------------------------------------------------------------
+    def _on_destroy(self, *_args) -> None:
+        if self._slash_brightness_timeout:
+            GLib.source_remove(self._slash_brightness_timeout)
+            self._slash_brightness_timeout = 0
+
     def set_dark(self, dark: bool) -> None:
         return None
