@@ -62,6 +62,17 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.3.0" date="2026-11-20">
+      <description>
+        <p>Power-source memory and an on-screen mode card.</p>
+        <ul>
+          <li>Picking a mode remembers it for the current power source, so unplugging restores the battery mode and plugging back in restores the AC mode. asusd performs the switch itself, so it works while the window is closed.</li>
+          <li>A small dark card at the bottom of the screen names the mode after a plug or unplug, and after a hotkey or tray switch while the window is hidden.</li>
+          <li>Settings shows which mode is remembered for each power source.</li>
+          <li>The --profile command updates the same memory.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.6" date="2026-11-18">
       <description>
         <p>Interface tests.</p>

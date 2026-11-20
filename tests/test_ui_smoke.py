@@ -101,6 +101,9 @@ class WindowSmokeTests(unittest.TestCase):
         if cls.window._tick_id:
             GLib.source_remove(cls.window._tick_id)
             cls.window._tick_id = 0
+        if cls.window._power_id:
+            GLib.source_remove(cls.window._power_id)
+            cls.window._power_id = 0
         cls.window.tasks.shutdown()
         cls.window.destroy()
 
@@ -144,6 +147,19 @@ class WindowSmokeTests(unittest.TestCase):
         self.assertIsNotNone(page.cpu_chart)
         self.assertIsNotNone(page.gpu_chart)
         self.assertIn(page.ppt_status.get_text(), ("Applied", "Not applied", "Not available", "\u2014"))
+
+    def test_power_overlay_builds(self) -> None:
+        from ghelper.backend.asusd import BALANCED
+        from ghelper.ui.overlay import PowerOverlay
+
+        overlay = PowerOverlay(self.app)
+        self.addCleanup(overlay.destroy)
+        overlay.show_status(BALANCED, False)
+        self.assertTrue(pump(overlay.get_visible), "overlay never mapped")
+        self.assertIn("Balanced", overlay._title.get_text())
+        self.assertEqual(overlay._source.get_text(), "On battery")
+        overlay.dismiss()
+        self.assertFalse(overlay.get_visible(), "overlay did not dismiss")
 
     def test_hotkeys_window_builds(self) -> None:
         self.window.open_hotkeys_window()

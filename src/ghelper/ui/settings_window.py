@@ -16,16 +16,9 @@ from ..backend import hotkeys as hotkeys_mod
 from ..backend.system import dgpu_present, machine_name, rescan_pci
 from ..deps import Adw, Gio, GLib, Gtk, Pango
 from .format import battery_line
+from .profiles import PROFILE_LABELS
 from .theme import register_root
 from .widgets import Section, ToggleRow, ValueRow, dropdown, flat_button
-
-PROFILE_LABELS = {
-    asusd_mod.QUIET: "Silent",
-    asusd_mod.LOW_POWER: "Silent",
-    asusd_mod.BALANCED: "Balanced",
-    asusd_mod.PERFORMANCE: "Turbo",
-    asusd_mod.CUSTOM: "Custom",
-}
 
 
 class SettingsWindow(Adw.Window):
@@ -83,8 +76,11 @@ class SettingsWindow(Adw.Window):
     def _build_power(self, body: Gtk.Box) -> None:
         section = Section("gh-optimized-symbolic", "Power Source")
         self._auto_switch = ToggleRow(
-            "Switch profile with power source",
-            subtitle="asusd applies these profiles automatically.",
+            "Remember a profile per power source",
+            subtitle=(
+                "Each mode you pick is stored for the current source, and asusd "
+                "switches to it when the cable moves — even while this app is closed."
+            ),
         )
         self._auto_switch.switch.connect("notify::active", self._on_auto_toggled)
         section.add(self._auto_switch)
@@ -93,8 +89,8 @@ class SettingsWindow(Adw.Window):
         self._battery_combo = self._profile_dropdown()
         self._ac_combo.connect("notify::selected", self._on_ac_selected)
         self._battery_combo.connect("notify::selected", self._on_battery_selected)
-        section.add(self._labeled("On AC power", self._ac_combo))
-        section.add(self._labeled("On battery", self._battery_combo))
+        section.add(self._labeled("Remembered on AC power", self._ac_combo))
+        section.add(self._labeled("Remembered on battery", self._battery_combo))
         body.append(section)
 
     def _build_cpu(self, body: Gtk.Box) -> None:

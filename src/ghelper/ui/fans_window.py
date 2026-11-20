@@ -11,18 +11,11 @@ from ..backend import fan_presets
 from ..deps import Adw, Gio, GLib, Gtk
 from .chart import CPU_COLOR, GPU_COLOR, FanChart
 from .icons import ThemedIcon
+from .profiles import PROFILE_LABELS
 from .theme import register_root
 from .widgets import SectionHeader, VerticalSlider, flat_button, dropdown
 
 log = logging.getLogger(__name__)
-
-PROFILE_LABELS = {
-    asusd_mod.QUIET: "Silent",
-    asusd_mod.LOW_POWER: "Silent",
-    asusd_mod.BALANCED: "Balanced",
-    asusd_mod.PERFORMANCE: "Turbo",
-    asusd_mod.CUSTOM: "Custom",
-}
 
 EPP_VALUES = [4, 3, 2, 1]
 EPP_LABELS = ["Power", "Balance power", "Balance performance", "Performance"]

@@ -1,3 +1,15 @@
+ghelper-linux (0.3.0-1) unstable; urgency=medium
+
+  * Remember the chosen performance mode per power source; asusd restores it
+    when the cable is plugged or pulled, even while the window is closed.
+  * Show a small bottom-centre card naming the mode after a power-source
+    change, and after a hotkey or tray switch while the window is hidden.
+  * Settings shows which mode is remembered for AC and for battery.
+  * --profile updates the same per-source memory.
+  * One shared profile name/icon table for the windows, the card and the CLI.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Fri, 20 Nov 2026 09:15:00 -0500
+
 ghelper-linux (0.2.6-1) unstable; urgency=medium
 
   * Headless UI smoke tests build the real application and open the main,

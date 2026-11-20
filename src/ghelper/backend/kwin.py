@@ -15,6 +15,10 @@ frame is therefore already in the right corner.  Re-running the script moves
 windows that are already mapped, which is used when the panel or screen layout
 changes.
 
+A second, smaller script does the same for the power-source overlay: bottom
+centre, no task bar entry and above normal windows.  It is loaded the first
+time the overlay is shown, so nothing changes for users who never trigger it.
+
 Every failure is non-fatal: the window simply stays wherever KWin put it.
 """
 
@@ -35,6 +39,7 @@ SCRIPTING_IFACE = "org.kde.kwin.Scripting"
 SCRIPT_IFACE = "org.kde.kwin.Script"
 
 SCRIPT_NAME = "ghelper-placement"
+OVERLAY_SCRIPT_NAME = "ghelper-overlay"
 
 PLACEMENT_SCRIPT = """
 const resourceClass = {resource_class};
@@ -99,8 +104,55 @@ const windows = (typeof workspace.windowList === "function")
 for (const window of windows) place(window);
 """
 
-_script_id: int | None = None
-_script_path: str | None = None
+OVERLAY_SCRIPT = """
+const caption = {caption};
+
+function isTarget(window) {{
+    return caption !== "" && String(window.caption) === caption;
+}}
+
+function place(window) {{
+    if (!isTarget(window)) return;
+
+    try {{
+        // An OSD is not a task: keep it off the bar, switcher and pager, and
+        // above ordinary windows so it is visible over anything.
+        window.skipTaskbar = true;
+        window.skipPager = true;
+        window.keepAbove = true;
+        window.noBorder = true;
+
+        // PlacementArea already excludes panels, so the card sits above a
+        // bottom panel instead of across it.
+        const desktop = workspace.currentDesktop;
+        const work = workspace.clientArea(KWin.PlacementArea, window.output, desktop);
+        if (!work) return;
+
+        const geometry = Object.assign({{}}, window.frameGeometry);
+        const width = geometry.width;
+        const height = geometry.height;
+
+        geometry.x = work.x + Math.round((work.width - width) / 2);
+        geometry.y = work.y + Math.round(work.height * 0.82) - Math.round(height / 2);
+        window.frameGeometry = geometry;
+    }} catch (error) {{
+        // A window without an output yet must not break the watcher.
+    }}
+}}
+
+if (typeof __ghelperOverlay === "undefined") {{
+    __ghelperOverlay = true;
+    workspace.windowAdded.connect(place);
+}}
+
+const windows = (typeof workspace.windowList === "function")
+    ? workspace.windowList()
+    : workspace.clientList();
+for (const window of windows) place(window);
+"""
+
+#: Loaded scripts, by KWin script name: ``name -> (id, temporary file)``.
+_scripts: dict[str, tuple[int, str]] = {}
 
 
 def available() -> bool:
@@ -119,16 +171,9 @@ def _interface(path: str, iface: str):
     return dbus.Interface(bus.get_object(BUS_NAME, path, introspect=False), iface)
 
 
-def install(
-    caption: str = "G-Helper",
-    resource_class: str | None = None,
-    *,
-    margin: int = 8,
-) -> bool:
-    """Load the placement watcher. Call before the window is first mapped."""
-    global _script_id, _script_path
-
-    if _script_id is not None:
+def _load(name: str, body: str) -> bool:
+    """Write, register and start a watcher script once."""
+    if name in _scripts:
         return True
     if not available():
         return False
@@ -138,34 +183,27 @@ def install(
     )
     path = handle.name
     try:
-        handle.write(
-            PLACEMENT_SCRIPT.format(
-                resource_class=json.dumps(resource_class or ""),
-                caption=json.dumps(caption or ""),
-                margin=margin,
-            )
-        )
+        handle.write(body)
         handle.close()
 
         scripting = _interface(SCRIPTING_PATH, SCRIPTING_IFACE)
         try:
             # A previous instance may have died without unloading its script.
-            scripting.unloadScript(SCRIPT_NAME)
+            scripting.unloadScript(name)
         except dbus.DBusException:
             pass
-        script_id = int(scripting.loadScript(path, SCRIPT_NAME))
+        script_id = int(scripting.loadScript(path, name))
         if script_id < 0:
-            log.debug("KWin refused to load the placement script")
+            log.debug("KWin refused to load %s", name)
             os.unlink(path)
             return False
 
-        _script_id = script_id
-        _script_path = path
-        _interface(f"/Scripting/Script{script_id}", SCRIPT_IFACE).run()
-        log.debug("placement watcher installed (script %s)", script_id)
+        _scripts[name] = (script_id, path)
+        _run(name)
+        log.debug("KWin watcher %s installed (script %s)", name, script_id)
         return True
     except (dbus.DBusException, OSError) as exc:
-        log.debug("KWin placement failed: %s", exc)
+        log.debug("KWin script %s failed: %s", name, exc)
         try:
             handle.close()
         except OSError:
@@ -177,6 +215,47 @@ def install(
         return False
 
 
+def _run(name: str) -> bool:
+    entry = _scripts.get(name)
+    if entry is None:
+        return False
+    try:
+        _interface(f"/Scripting/Script{entry[0]}", SCRIPT_IFACE).run()
+        return True
+    except dbus.DBusException as exc:
+        log.debug("KWin script %s failed to run: %s", name, exc)
+        return False
+
+
+def _unload(name: str) -> None:
+    entry = _scripts.pop(name, None)
+    if entry is None:
+        return
+    try:
+        _interface(SCRIPTING_PATH, SCRIPTING_IFACE).unloadScript(name)
+    except dbus.DBusException as exc:
+        log.debug("could not unload the KWin script %s: %s", name, exc)
+    try:
+        os.unlink(entry[1])
+    except OSError:
+        pass
+
+
+def install(
+    caption: str = "G-Helper",
+    resource_class: str | None = None,
+    *,
+    margin: int = 8,
+) -> bool:
+    """Load the placement watcher. Call before the window is first mapped."""
+    body = PLACEMENT_SCRIPT.format(
+        resource_class=json.dumps(resource_class or ""),
+        caption=json.dumps(caption or ""),
+        margin=margin,
+    )
+    return _load(SCRIPT_NAME, body)
+
+
 def place_window(
     caption: str = "G-Helper",
     resource_class: str | None = None,
@@ -186,30 +265,17 @@ def place_window(
     """Install the watcher if needed, then reposition mapped windows."""
     if not install(caption, resource_class, margin=margin):
         return False
-    if _script_id is None:
-        return False
-    try:
-        _interface(f"/Scripting/Script{_script_id}", SCRIPT_IFACE).run()
+    return _run(SCRIPT_NAME)
+
+
+def install_overlay(caption: str) -> bool:
+    """Load the bottom-centre watcher used by the power-source overlay."""
+    if OVERLAY_SCRIPT_NAME in _scripts:
         return True
-    except dbus.DBusException as exc:
-        log.debug("KWin placement failed: %s", exc)
-        return False
+    return _load(OVERLAY_SCRIPT_NAME, OVERLAY_SCRIPT.format(caption=json.dumps(caption)))
 
 
 def stop() -> None:
-    """Unload the watcher so it does not outlive the application."""
-    global _script_id, _script_path
-
-    if _script_id is None:
-        return
-    try:
-        _interface(SCRIPTING_PATH, SCRIPTING_IFACE).unloadScript(SCRIPT_NAME)
-    except dbus.DBusException as exc:
-        log.debug("could not unload the KWin script: %s", exc)
-    _script_id = None
-    if _script_path is not None:
-        try:
-            os.unlink(_script_path)
-        except OSError:
-            pass
-        _script_path = None
+    """Unload the watchers so they do not outlive the application."""
+    _unload(OVERLAY_SCRIPT_NAME)
+    _unload(SCRIPT_NAME)

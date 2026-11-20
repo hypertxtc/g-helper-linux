@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.2.6}
+Version:        %{?gh_version}%{!?gh_version:0.3.0}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,6 +64,14 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.3.0-1
+- Remember the chosen mode per power source; asusd restores it on plug and
+  unplug, even while the window is closed
+- Show a small bottom-centre card naming the mode when the power source
+  changes, and when a hotkey switches the mode while the window is hidden
+- Share one profile name/icon table between the windows, the overlay and the
+  --profile command
+
 * Wed Nov 18 2026 Atlas <atlas@hypertextcoffee.com> - 0.2.6-1
 - Headless UI smoke tests build the real application and every window, and
   fail on any GTK critical

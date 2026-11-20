@@ -81,7 +81,7 @@ def _check() -> int:
 def _run_action(args) -> int:
     """One-shot actions, intended for hotkeys and scripts."""
     from .backend import asusd as asusd_mod
-    from .backend import cardwire, display
+    from .backend import cardwire, display, power_memory
 
     try:
         if args.profile or args.charge_limit is not None:
@@ -100,6 +100,9 @@ def _run_action(args) -> int:
             }[args.profile]
             profile = next((p for p in preferred if p in choices), preferred[0])
             client.set_platform_profile(profile)
+            # Keep the per-power-source memory in step with scripted changes,
+            # exactly as the window and hotkeys do.
+            power_memory.remember(client, profile)
             print(f"profile: {asusd_mod.PROFILE_NAMES.get(profile, profile)}")
 
         if args.charge_limit is not None and client is not None:

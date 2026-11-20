@@ -377,3 +377,30 @@ window.dark .gh-footer-label {
 .gh-status {
   font-size: 9pt;
 }
+
+/* Power-source overlay: a small, always-dark OSD card. */
+window.gh-overlay,
+window.gh-overlay.background,
+window.gh-overlay > contents {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.gh-overlay-card {
+  background-color: rgba(18, 18, 18, 0.93);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 16px 26px;
+  margin: 12px;
+}
+
+.gh-overlay-title {
+  color: #ffffff;
+  font-size: 13pt;
+  font-weight: 700;
+}
+
+.gh-overlay-sub {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 9pt;
+}

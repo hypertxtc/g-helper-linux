@@ -19,7 +19,8 @@ System Control Interface on Windows.
 | --- | --- | --- |
 | G-Helper-style main window | GTK4 + CSS | Compact mode rows, light/dark, live CPU/GPU header stats |
 | Silent / Balanced / Turbo profiles | `asusd` → `xyz.ljones.Platform` | Same BIOS profiles as Armoury Crate |
-| AC / battery profile automation | `asusd` | Toggle asusd's automatic switching (Settings) |
+| AC / battery profile memory | `asusd` | The mode you pick is remembered for the current power source; asusd restores it when the cable moves, with or without the window open |
+| Power-source overlay | GTK4 OSD | Small bottom-centre card naming the mode after a plug/unplug, and after a hotkey switch while the window is hidden |
 | Custom fan curves per profile | `asusd` → `xyz.ljones.FanCurves` | Drag-and-drop RPM charts, named presets, copy between profiles, JSON import/export; CPU, GPU and MID fans |
 | CPU boost / energy preference | `asusd` | Per-profile EPP in Fans + Power |
 | PPT power limits | `asusd` → asus-armoury attributes | Vertical sliders with Applied/Not Applied status |
@@ -62,7 +63,7 @@ compositors, because they go through `asusd`, `cardwire` and sysfs:
 | GPU modes, Smart mode and per-app dGPU launch | Yes | Yes |
 | Fn / ROG hotkeys | Yes, with the bundled udev rule | Yes, with the bundled udev rule |
 | Refresh rate and Panel Overdrive row | Hidden/disabled: `kscreen-doctor` needs KWin | Same |
-| Window next to the panel | No: GNOME does not let apps position windows | No |
+| Window and overlay placement | No: GNOME does not let apps position windows; the overlay still appears, centred | Same |
 | Tray icon | Needs the AppIndicator extension | Needs a StatusNotifier host (`waybar`, `swaybar` via `snixembed`) |
 
 `ghelper-linux --check` prints why the display backend is off, so a bug report

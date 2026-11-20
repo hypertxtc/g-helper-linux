@@ -16,6 +16,7 @@ from ..backend import gpu_policy
 from ..backend.system import ac_online, dgpu_present
 from ..deps import Adw, Gdk, GLib, Gtk
 from .format import battery_line
+from .profiles import PROFILE_META
 from .widgets import (
     BatteryScale,
     ModeButton,
@@ -26,14 +27,6 @@ from .widgets import (
 )
 
 log = logging.getLogger(__name__)
-
-PROFILE_META = {
-    asusd_mod.QUIET: ("Silent", "gh-silent-symbolic", "green"),
-    asusd_mod.LOW_POWER: ("Silent", "gh-silent-symbolic", "green"),
-    asusd_mod.BALANCED: ("Balanced", "gh-balanced-symbolic", "blue"),
-    asusd_mod.PERFORMANCE: ("Turbo", "gh-turbo-symbolic", "red"),
-    asusd_mod.CUSTOM: ("Custom", "gh-optimized-symbolic", "orange"),
-}
 
 GPU_MODES = ("eco", "standard", "ultimate", "optimized")
 GPU_LABELS = {

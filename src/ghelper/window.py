@@ -19,25 +19,19 @@ from .backend.asusd import (
     AsusdError,
 )
 from .backend import cardwire as cw
+from .backend import power_memory
 from .backend.settings import Settings
-from .backend.system import Monitor
+from .backend.system import Monitor, ac_online
 from .deps import Adw, Gio, GLib, Gtk
 from .tasks import TaskRunner
 from .ui.fans_window import FansWindow
 from .ui.format import status_line
 from .ui.main_view import MainView
+from .ui.profiles import PROFILE_LABELS
 from .ui.settings_window import SettingsWindow
 from .ui import theme
 
 log = logging.getLogger(__name__)
-
-PROFILE_LABELS = {
-    QUIET: "Silent",
-    LOW_POWER: "Silent",
-    BALANCED: "Balanced",
-    PERFORMANCE: "Turbo",
-    CUSTOM: "Custom",
-}
 
 MIN_WIDTH = 390
 MIN_HEIGHT = 520
@@ -76,6 +70,9 @@ class MainWindow(Adw.ApplicationWindow):
         self._settings_window: SettingsWindow | None = None
         self._hotkeys_window = None
         self._hotkeys = None
+        self._overlay = None
+        self._last_ac: bool | None = None
+        self._power_id = 0
 
         self.profiles = self._detect_profiles()
         try:
@@ -119,10 +116,15 @@ class MainWindow(Adw.ApplicationWindow):
         application.set_accels_for_action("win.reload", ["<Control>r"])
 
         self.connect("close-request", self._on_close)
+        self.connect("destroy", self._on_destroy)
 
         self.start_hotkeys()
         self._tick()
         self._tick_id = GLib.timeout_add_seconds(2, self._tick)
+        # A dedicated, cheap poll of the power-supply flag.  Telemetry only
+        # runs every two seconds, and an OSD that appears three seconds after
+        # the cable moves feels broken; this reads one sysfs file.
+        self._power_id = GLib.timeout_add(500, self._poll_power)
 
     # -- setup ----------------------------------------------------------
     def _detect_profiles(self) -> list[int]:
@@ -365,8 +367,16 @@ class MainWindow(Adw.ApplicationWindow):
             self.toast("asusd is not running")
             return
         label = self.profile_label(profile)
+
+        def work() -> None:
+            self.asusd.set_platform_profile(profile)
+            # G-Helper on Windows remembers the mode that was active on each
+            # power source; mirror this explicit choice into asusd's own slot
+            # so its power-event switching restores it later.
+            power_memory.remember(self.asusd, profile)
+
         self.tasks.submit(
-            lambda: self.asusd.set_platform_profile(profile),
+            work,
             done=lambda _result: self._profile_written(profile, label),
             error=self._profile_write_failed,
         )
@@ -375,6 +385,12 @@ class MainWindow(Adw.ApplicationWindow):
         self._apply_profile_ui(profile)
         self.toast(f"{label} mode")
         self._sync_profile(force=True)
+        if self._settings_window is not None:
+            self._settings_window.refresh()
+        # A hotkey or tray switch is the only feedback when the window is
+        # hidden, so mirror G-Helper's mode OSD there too.
+        if not self.get_visible() and self._last_ac is not None:
+            self.show_mode_overlay(profile, self._last_ac)
 
     def _profile_write_failed(self, exc: Exception) -> None:
         self.show_error(exc)
@@ -499,3 +515,65 @@ class MainWindow(Adw.ApplicationWindow):
         self.stop_hotkeys()
         self.tasks.shutdown()
         return False
+
+    def _on_destroy(self, _widget: Gtk.Widget) -> None:
+        # destroy() does not emit close-request, and a surviving timer would
+        # keep calling into a dead window (a GTK critical in the UI tests).
+        for attribute in ("_tick_id", "_power_id"):
+            source = getattr(self, attribute, 0)
+            if source:
+                GLib.source_remove(source)
+                setattr(self, attribute, 0)
+        if self._overlay is not None:
+            self._overlay.dismiss()
+
+    # -- power-source changes --------------------------------------------
+    def _poll_power(self) -> bool:
+        """Watch the cheap AC flag so the OSD follows the cable, not the tick."""
+        ac = ac_online()
+        if ac is None:
+            return True
+        if self._last_ac is None:
+            self._last_ac = ac
+        elif ac != self._last_ac:
+            self._last_ac = ac
+            log.debug("power source changed to %s", "AC" if ac else "battery")
+            self._announce_power(ac)
+        return True
+
+    def _announce_power(self, ac: bool) -> None:
+        """Show the mode asusd is about to apply for the new power source.
+
+        Reading the remembered value instead of waiting for asusd to write the
+        profile removes a race: the card and the buttons agree immediately,
+        and the next profile sync confirms it.
+        """
+
+        def probe() -> int:
+            remembered = power_memory.target(self.asusd, ac)
+            return self.asusd.platform_profile() if remembered is None else remembered
+
+        self.tasks.submit(
+            probe,
+            done=lambda profile: self._show_power_status(profile, ac),
+            error=lambda _exc: self._show_power_status(self._profile, ac),
+        )
+
+    def _show_power_status(self, profile: int, ac: bool) -> None:
+        self._apply_profile_ui(profile)
+        self.show_mode_overlay(profile, ac)
+
+    def show_mode_overlay(self, profile: int, ac: bool) -> None:
+        """Display the mode OSD; harmless on compositors without placement."""
+        from .backend import kwin
+        from .ui.overlay import CAPTION, PowerOverlay
+
+        kwin.install_overlay(CAPTION)
+        if self._overlay is None:
+            self._overlay = PowerOverlay(self.get_application())
+            self._overlay.connect("destroy", self._overlay_destroyed)
+        self._overlay.show_status(profile, ac)
+
+    def _overlay_destroyed(self, _widget: Gtk.Widget) -> None:
+        self._overlay = None
+
