@@ -151,7 +151,13 @@ class WindowSmokeTests(unittest.TestCase):
         self.assertEqual(page.get_title(), "Fans and Power")
         self.assertIsNotNone(page.cpu_chart)
         self.assertIsNotNone(page.gpu_chart)
-        self.assertIn(page.ppt_status.get_text(), ("Applied", "Not applied", "Not available", "\u2014"))
+        self.assertIsNotNone(page.mid_chart)
+        self.assertIsNotNone(page.fan_status)
+        self.assertIsNotNone(page.fppt_slider)
+        self.assertIn(
+            page.ppt_status.get_text(),
+            ("Applied", "Not applied", "Not available", "\u2014"),
+        )
 
     def test_power_overlay_builds(self) -> None:
         from ghelper.backend.asusd import BALANCED

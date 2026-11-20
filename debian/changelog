@@ -1,3 +1,16 @@
+ghelper-linux (0.4.2-1) unstable; urgency=medium
+
+  * Fix Fans and Power reading the last profile's EPP instead of the
+    active profile's EPP, and guard programmatic VerticalSlider range
+    clamping from triggering unintended PPT writes.
+  * Add live temperature/RPM overlay and readout on fan charts, plus a
+    Fan Profiles status indicator (BIOS default / Custom active /
+    Unsaved changes).
+  * Support a third MID fan (chart, hwmon fan3 readout and curve presets)
+    and the fPPT (PL3) slider when exposed by firmware.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Fri, 20 Nov 2026 14:58:00 -0500
+
 ghelper-linux (0.4.1-1) unstable; urgency=medium
 
   * Sync profile changes and AC/battery transitions with tuned-ppd /

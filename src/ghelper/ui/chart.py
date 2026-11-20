@@ -14,6 +14,40 @@ RPM_MAX = 5600
 
 CPU_COLOR = (0.227, 0.682, 0.937)  # #3aaeef
 GPU_COLOR = (1.0, 0.125, 0.125)  # #ff2020
+MID_COLOR = (0.024, 0.706, 0.541)  # #06b48a
+_TAU = 6.283185307179586
+
+
+def interpolate_pwm(temp: float, temps: list[int], pwm: list[int]) -> float | None:
+    """Estimate target PWM from an 8-point fan curve via piecewise linear interpolation."""
+    if not temps or len(temps) != len(pwm):
+        return None
+    if temp <= temps[0]:
+        return float(pwm[0])
+    if temp >= temps[-1]:
+        return float(pwm[-1])
+    for index in range(len(temps) - 1):
+        t0, t1 = temps[index], temps[index + 1]
+        if temp <= t1:
+            if t1 == t0:
+                return float(pwm[index])
+            ratio = (temp - t0) / (t1 - t0)
+            return float(pwm[index] + ratio * (pwm[index + 1] - pwm[index]))
+    return float(pwm[-1])
+
+
+def format_live_reading(
+    temp: float | None, rpm: int | None, pwm: int | None = None
+) -> str:
+    """Format an optional temperature and fan speed for the chart header."""
+    parts: list[str] = []
+    if temp is not None:
+        parts.append(f"{temp:.0f}\u00b0C")
+    if rpm is not None:
+        parts.append(f"{int(rpm)} RPM")
+    elif pwm is not None:
+        parts.append(f"{round(max(0, min(PWM_MAX, int(pwm))) / PWM_MAX * 100)}%")
+    return " \u00b7 ".join(parts)
 
 
 class FanChart(Gtk.DrawingArea):
@@ -38,6 +72,9 @@ class FanChart(Gtk.DrawingArea):
         self._selected: int | None = None
         self._pointer = (0.0, 0.0)
         self._drag: dict | None = None
+        self._live_temp: float | None = None
+        self._live_rpm: int | None = None
+        self._live_pwm: int | None = None
 
         self.set_content_width(420)
         self.set_content_height(190)
@@ -67,6 +104,24 @@ class FanChart(Gtk.DrawingArea):
 
     def points(self) -> tuple[list[int], list[int]]:
         return list(self._pwm), list(self._temp)
+
+    def set_live(
+        self, temp: float | None, rpm: int | None = None, pwm: int | None = None
+    ) -> None:
+        """Update the live temperature / fan speed indicator and redraw if changed."""
+        new_temp = round(float(temp), 1) if temp is not None else None
+        new_rpm = int(rpm) if rpm is not None else None
+        new_pwm = int(pwm) if pwm is not None else None
+        if (
+            new_temp == self._live_temp
+            and new_rpm == self._live_rpm
+            and new_pwm == self._live_pwm
+        ):
+            return
+        self._live_temp = new_temp
+        self._live_rpm = new_rpm
+        self._live_pwm = new_pwm
+        self.queue_draw()
 
     # -- geometry -------------------------------------------------------
     def _plot(self) -> tuple[float, float, float, float]:
@@ -116,12 +171,23 @@ class FanChart(Gtk.DrawingArea):
 
         left, top, plot_w, plot_h = self._plot()
 
-        # Title
+        # Title and live readout
         cr.set_source_rgba(*text, 0.95)
         cr.set_font_size(10)
-        extents = cr.text_extents(self._title)
-        cr.move_to(left + (plot_w - extents.width) / 2, 15)
+        title_extents = cr.text_extents(self._title)
+        title_x = left + (plot_w - title_extents.width) / 2
+        cr.move_to(title_x, 15)
         cr.show_text(self._title)
+
+        live_text = format_live_reading(self._live_temp, self._live_rpm, self._live_pwm)
+        if live_text:
+            cr.set_source_rgba(*text, 0.75)
+            cr.set_font_size(8.5)
+            live_extents = cr.text_extents(live_text)
+            live_text_x = left + plot_w - live_extents.width
+            if live_text_x > title_x + title_extents.width + 8:
+                cr.move_to(live_text_x, 15)
+                cr.show_text(live_text)
 
         # Horizontal grid every 1400 RPM.
         for step in range(5):
@@ -168,25 +234,60 @@ class FanChart(Gtk.DrawingArea):
             selected = self._selected == index
             radius = 5.5 if selected else 4.2
             cr.set_source_rgba(*self._color, 1.0)
-            cr.arc(px, py, radius, 0, 6.283185307179586)
+            cr.arc(px, py, radius, 0, _TAU)
             cr.fill()
             cr.set_source_rgba(*bg, 1.0)
             cr.set_line_width(1.2)
-            cr.arc(px, py, radius, 0, 6.283185307179586)
+            cr.arc(px, py, radius, 0, _TAU)
             cr.stroke()
-            if selected:
-                rpm = int(self._pwm[index] / PWM_MAX * RPM_MAX)
-                label = f"{self._temp[index]}C, {rpm} RPM"
-                cr.set_font_size(9)
-                extents = cr.text_extents(label)
-                box_x = min(max(px - extents.width / 2 - 5, 2), width - extents.width - 14)
-                box_y = max(py - 28, 2)
-                cr.set_source_rgba(*grid, 0.75)
-                cr.rectangle(box_x, box_y, extents.width + 10, 17)
+
+        if self._live_temp is not None:
+            clamped_temp = max(TEMP_MIN, min(TEMP_MAX, self._live_temp))
+            live_x, _ = self._to_px(clamped_temp, 0)
+            cr.set_dash([3.0, 3.0])
+            cr.set_source_rgba(*self._color, 0.45)
+            cr.set_line_width(1.0)
+            cr.move_to(live_x, top)
+            cr.line_to(live_x, top + plot_h)
+            cr.stroke()
+            cr.set_dash([])
+
+            if self._live_rpm is not None:
+                live_pwm_val = (
+                    max(0, min(RPM_MAX, self._live_rpm)) / RPM_MAX * PWM_MAX
+                )
+            elif self._live_pwm is not None:
+                live_pwm_val = float(max(0, min(PWM_MAX, self._live_pwm)))
+            else:
+                live_pwm_val = interpolate_pwm(clamped_temp, self._temp, self._pwm)
+
+            if live_pwm_val is not None:
+                _, live_y = self._to_px(clamped_temp, live_pwm_val)
+                cr.set_source_rgba(*self._color, 0.22)
+                cr.arc(live_x, live_y, 7.5, 0, _TAU)
                 cr.fill()
-                cr.set_source_rgba(*text, 1.0)
-                cr.move_to(box_x + 5, box_y + 12)
-                cr.show_text(label)
+                cr.set_source_rgba(*bg, 1.0)
+                cr.arc(live_x, live_y, 4.5, 0, _TAU)
+                cr.fill()
+                cr.set_source_rgba(*self._color, 1.0)
+                cr.set_line_width(2.0)
+                cr.arc(live_x, live_y, 4.5, 0, _TAU)
+                cr.stroke()
+
+        if self._selected is not None and 0 <= self._selected < len(points):
+            px, py = points[self._selected]
+            rpm = int(self._pwm[self._selected] / PWM_MAX * RPM_MAX)
+            label = f"{self._temp[self._selected]}C, {rpm} RPM"
+            cr.set_font_size(9)
+            extents = cr.text_extents(label)
+            box_x = min(max(px - extents.width / 2 - 5, 2), width - extents.width - 14)
+            box_y = max(py - 28, 2)
+            cr.set_source_rgba(*grid, 0.75)
+            cr.rectangle(box_x, box_y, extents.width + 10, 17)
+            cr.fill()
+            cr.set_source_rgba(*text, 1.0)
+            cr.move_to(box_x + 5, box_y + 12)
+            cr.show_text(label)
 
     # -- interaction ----------------------------------------------------
     def _on_motion(self, _controller, x: float, y: float) -> None:

@@ -376,11 +376,13 @@ class Monitor:
         result: dict[str, int | None] = {
             "cpu": None,
             "gpu": None,
+            "mid": None,
             "cpu_pwm": None,
             "gpu_pwm": None,
+            "mid_pwm": None,
         }
         for path in self._hwmon.get("asus", []) + self._hwmon.get("asus_custom_fan_curve", []):
-            for index in (1, 2):
+            for index in (1, 2, 3):
                 label = (_text(os.path.join(path, f"fan{index}_label")) or "").lower()
                 value = _int(os.path.join(path, f"fan{index}_input"))
                 pwm = _int(os.path.join(path, f"pwm{index}"))
@@ -391,10 +393,14 @@ class Monitor:
                     target = "cpu"
                 elif "gpu" in label:
                     target = "gpu"
+                elif "mid" in label:
+                    target = "mid"
                 elif index == 1 and result["cpu"] is None:
                     target = "cpu"
                 elif index == 2 and result["gpu"] is None:
                     target = "gpu"
+                elif index == 3 and result["mid"] is None:
+                    target = "mid"
                 if target is None:
                     continue
                 if value is not None:

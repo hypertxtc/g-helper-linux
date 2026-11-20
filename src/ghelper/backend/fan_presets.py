@@ -30,7 +30,7 @@ from . import settings as settings_mod
 log = logging.getLogger(__name__)
 
 VERSION = 1
-FANS = ("CPU", "GPU")
+FANS = ("CPU", "GPU", "MID")
 POINTS = 8
 PWM_MAX = 255
 TEMP_MIN = 0
@@ -94,7 +94,7 @@ def normalize(curves: Any) -> dict[str, dict[str, Any]]:
         if fan in curves:
             cleaned[fan] = _clean_curve(fan, curves[fan])
     if not cleaned:
-        raise CurveError("no CPU or GPU curve found")
+        raise CurveError("no CPU, GPU or MID curve found")
     return cleaned
 
 

@@ -9,7 +9,7 @@ import logging
 from ..backend import asusd as asusd_mod
 from ..backend import fan_presets
 from ..deps import Adw, Gio, GLib, Gtk
-from .chart import CPU_COLOR, GPU_COLOR, FanChart
+from .chart import CPU_COLOR, GPU_COLOR, MID_COLOR, FanChart
 from .icons import ThemedIcon
 from .profiles import PROFILE_LABELS
 from .theme import register_root
@@ -19,6 +19,25 @@ log = logging.getLogger(__name__)
 
 EPP_VALUES = [4, 3, 2, 1]
 EPP_LABELS = ["Power", "Balance power", "Balance performance", "Performance"]
+
+_PPT_FIELDS = (
+    ("platform", asusd_mod.ATTR_PPT_PLATFORM),
+    ("cpu", asusd_mod.ATTR_PPT_APU),
+    ("fppt", asusd_mod.ATTR_PPT_FPPT),
+)
+
+
+def fan_status_info(
+    curves: dict[str, dict], enabled: dict[str, bool], dirty: bool
+) -> tuple[str, bool | None]:
+    """Return status text and optional ok-flag (True/False/None) for Fan Profiles."""
+    if not curves:
+        return "Not available", False
+    if dirty:
+        return "Unsaved changes", False
+    if any(enabled.get(name, False) for name in curves):
+        return "Custom active", True
+    return "BIOS default", None
 
 
 def _cancelled(error: GLib.Error) -> bool:
@@ -52,6 +71,7 @@ class FansWindow(Adw.Window):
         self._curves: dict[str, dict] = {}
         self._enabled: dict[str, bool] = {}
         self._other_curves: dict[int, dict[str, dict]] = {}
+        self._fans_dirty = False
         self._curves_popover: Gtk.Popover | None = None
 
         register_root(self)
@@ -92,7 +112,7 @@ class FansWindow(Adw.Window):
         self.ppt_status = Gtk.Label(label="\u2014", xalign=0.0)
         self.ppt_status.add_css_class("gh-status")
 
-        sliders = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        sliders = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         sliders.set_halign(Gtk.Align.CENTER)
         sliders.set_homogeneous(True)
         sliders.set_vexpand(True)
@@ -102,8 +122,18 @@ class FansWindow(Adw.Window):
         self.cpu_slider = VerticalSlider(
             "CPU", 0, 100, 50, lambda value: self._on_ppt_slider("cpu", value)
         )
+        self.fppt_slider = VerticalSlider(
+            "fPPT", 0, 100, 50, lambda value: self._on_ppt_slider("fppt", value)
+        )
+        self.fppt_slider.set_visible(False)
+        self._ppt_sliders = {
+            "platform": self.platform_slider,
+            "cpu": self.cpu_slider,
+            "fppt": self.fppt_slider,
+        }
         sliders.append(self.platform_slider)
         sliders.append(self.cpu_slider)
+        sliders.append(self.fppt_slider)
 
         left.append(self.ppt_header)
         left.append(self.ppt_status)
@@ -145,14 +175,23 @@ class FansWindow(Adw.Window):
         top.append(self.boost)
         right.append(top)
 
+        self.fan_status = Gtk.Label(label="\u2014", xalign=0.0)
+        self.fan_status.add_css_class("gh-status")
+        right.append(self.fan_status)
+
         self.cpu_chart = FanChart("CPU Fan Profile", CPU_COLOR)
         self.gpu_chart = FanChart("GPU Fan Profile", GPU_COLOR)
+        self.mid_chart = FanChart("Mid Fan Profile", MID_COLOR)
         self.cpu_chart.connect("changed", self._on_fan_changed)
         self.gpu_chart.connect("changed", self._on_fan_changed)
+        self.mid_chart.connect("changed", self._on_fan_changed)
         self.cpu_chart.set_size_request(-1, 185)
         self.gpu_chart.set_size_request(-1, 185)
+        self.mid_chart.set_size_request(-1, 145)
+        self.mid_chart.set_visible(False)
         right.append(self.cpu_chart)
         right.append(self.gpu_chart)
+        right.append(self.mid_chart)
 
         bottom = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self._auto_fans = Gtk.CheckButton(label="Auto apply fan curves")
@@ -303,19 +342,15 @@ class FansWindow(Adw.Window):
         except asusd_mod.AsusdError as exc:
             data["error"] = str(exc)
         data["other_curves"] = {}
-        for profile in self.window.profiles:
-            other = asusd_mod.fan_profile_for(profile)
+        for candidate in self.window.profiles:
+            other = asusd_mod.fan_profile_for(candidate)
             if other == fan_profile or other in data["other_curves"]:
                 continue
             try:
                 data["other_curves"][other] = self.asusd.fan_curves(other)
             except asusd_mod.AsusdError:
                 continue
-        for logical in (
-            asusd_mod.ATTR_PPT_PLATFORM,
-            asusd_mod.ATTR_PPT_APU,
-            asusd_mod.ATTR_PPT_FPPT,
-        ):
+        for _key, logical in _PPT_FIELDS:
             try:
                 data["attrs"][logical] = self.asusd.armoury(logical)
             except asusd_mod.AsusdError:
@@ -332,6 +367,7 @@ class FansWindow(Adw.Window):
 
     def _apply(self, data: dict) -> None:
         self._refresh_pending = False
+        self._fans_dirty = False
         self._profile = int(data["profile"])
         self._fan_profile = int(data["fan_profile"])
         self._attrs = data.get("attrs") or {}
@@ -344,35 +380,44 @@ class FansWindow(Adw.Window):
         self._apply_ppt()
         self._apply_epp(data.get("epp"))
         self._apply_curves()
+        self._update_fan_status()
 
     def _apply_ppt(self) -> None:
-        pairs = (
-            ("platform", self.platform_slider, asusd_mod.ATTR_PPT_PLATFORM),
-            ("cpu", self.cpu_slider, asusd_mod.ATTR_PPT_APU),
-        )
         present = False
-        for key, slider, logical in pairs:
-            attr = self._attrs.get(logical)
-            if attr is None:
-                slider.set_sensitive(False)
-                continue
-            current = attr.get("CurrentValue")
-            minimum = attr.get("MinValue")
-            maximum = attr.get("MaxValue")
-            if current is None or minimum is None or maximum is None:
-                slider.set_sensitive(False)
-                continue
-            if maximum <= minimum:
-                slider.set_sensitive(False)
-                continue
-            present = True
-            slider.set_sensitive(True)
-            slider.set_range(float(minimum), float(maximum))
-            slider.set_value(float(current))
-            self._ppt_values[key] = int(current)
-            default = attr.get("DefaultValue")
-            if default is not None and int(default) > 0:
-                self._ppt_defaults[key] = int(default)
+        self._loading = True
+        try:
+            for key, logical in _PPT_FIELDS:
+                slider = self._ppt_sliders[key]
+                attr = self._attrs.get(logical)
+                current = attr.get("CurrentValue") if attr is not None else None
+                minimum = attr.get("MinValue") if attr is not None else None
+                maximum = attr.get("MaxValue") if attr is not None else None
+                valid = (
+                    attr is not None
+                    and current is not None
+                    and minimum is not None
+                    and maximum is not None
+                    and maximum > minimum
+                )
+                if key == "fppt":
+                    slider.set_visible(valid)
+                if not valid:
+                    slider.set_sensitive(False)
+                    self._ppt_values.pop(key, None)
+                    self._ppt_defaults.pop(key, None)
+                    continue
+                present = True
+                slider.set_sensitive(True)
+                slider.set_range(float(minimum), float(maximum))
+                slider.set_value(float(current))
+                self._ppt_values[key] = int(current)
+                default = attr.get("DefaultValue")
+                if default is not None and int(default) > 0:
+                    self._ppt_defaults[key] = int(default)
+                else:
+                    self._ppt_defaults.pop(key, None)
+        finally:
+            self._loading = False
 
         if not present:
             self._set_ppt_status("Not available", ok=False)
@@ -382,10 +427,7 @@ class FansWindow(Adw.Window):
     def _update_ppt_status(self) -> None:
         applied = True
         present = False
-        for key, logical in (
-            ("platform", asusd_mod.ATTR_PPT_PLATFORM),
-            ("cpu", asusd_mod.ATTR_PPT_APU),
-        ):
+        for key, logical in _PPT_FIELDS:
             attr = self._attrs.get(logical)
             if attr is None or key not in self._ppt_values:
                 continue
@@ -398,14 +440,24 @@ class FansWindow(Adw.Window):
             return
         self._set_ppt_status("Applied" if applied else "Not applied", ok=applied)
 
-    def _set_ppt_status(self, text: str, *, ok: bool | None = None) -> None:
-        self.ppt_status.set_text(text)
+    @staticmethod
+    def _set_status(
+        label: Gtk.Label, text: str, *, ok: bool | None = None
+    ) -> None:
+        label.set_text(text)
         for css in ("gh-status-ok", "gh-status-error"):
-            self.ppt_status.remove_css_class(css)
+            label.remove_css_class(css)
         if ok is True:
-            self.ppt_status.add_css_class("gh-status-ok")
+            label.add_css_class("gh-status-ok")
         elif ok is False:
-            self.ppt_status.add_css_class("gh-status-error")
+            label.add_css_class("gh-status-error")
+
+    def _set_ppt_status(self, text: str, *, ok: bool | None = None) -> None:
+        self._set_status(self.ppt_status, text, ok=ok)
+
+    def _update_fan_status(self) -> None:
+        text, ok = fan_status_info(self._curves, self._enabled, self._fans_dirty)
+        self._set_status(self.fan_status, text, ok=ok)
 
     def _apply_epp(self, epp: int | None) -> None:
         self._loading = True
@@ -419,8 +471,19 @@ class FansWindow(Adw.Window):
         finally:
             self._loading = False
 
+    def _active_charts(self) -> list[tuple[str, FanChart]]:
+        charts = [("CPU", self.cpu_chart), ("GPU", self.gpu_chart)]
+        if "MID" in self._curves or self.mid_chart.get_visible():
+            charts.append(("MID", self.mid_chart))
+        return charts
+
     def _apply_curves(self) -> None:
-        for name, chart in (("CPU", self.cpu_chart), ("GPU", self.gpu_chart)):
+        has_mid = "MID" in self._curves
+        self.mid_chart.set_visible(has_mid)
+        height = 145 if has_mid else 185
+        self._enabled.clear()
+        for name, chart in self._active_charts():
+            chart.set_size_request(-1, height)
             curve = self._curves.get(name)
             if curve is None:
                 chart.set_sensitive(False)
@@ -446,10 +509,7 @@ class FansWindow(Adw.Window):
 
         def work() -> None:
             self.asusd.set_enable_ppt_group(True)
-            for key, logical in (
-                ("platform", asusd_mod.ATTR_PPT_PLATFORM),
-                ("cpu", asusd_mod.ATTR_PPT_APU),
-            ):
+            for key, logical in _PPT_FIELDS:
                 if logical in self._attrs and key in values:
                     self.asusd.set_armoury(logical, values[key])
 
@@ -461,6 +521,8 @@ class FansWindow(Adw.Window):
 
     # -- fans -------------------------------------------------------------
     def _on_fan_changed(self, _chart) -> None:
+        self._fans_dirty = True
+        self._update_fan_status()
         if self._auto_fans.get_active():
             self.apply_fan_curve()
 
@@ -468,13 +530,21 @@ class FansWindow(Adw.Window):
         self.settings.set("auto_apply_fans", button.get_active())
 
     def apply_fan_curve(self) -> None:
-        cpu_pwm, cpu_temp = self.cpu_chart.points()
-        gpu_pwm, gpu_temp = self.gpu_chart.points()
+        curves = [
+            (name, *chart.points())
+            for name, chart in self._active_charts()
+            if not self._curves or name in self._curves
+        ]
+        if not curves:
+            curves = [
+                ("CPU", *self.cpu_chart.points()),
+                ("GPU", *self.gpu_chart.points()),
+            ]
         fan_profile = self._fan_profile
 
         def work() -> None:
-            self.asusd.set_fan_curve(fan_profile, "CPU", cpu_pwm, cpu_temp, True)
-            self.asusd.set_fan_curve(fan_profile, "GPU", gpu_pwm, gpu_temp, True)
+            for name, pwm, temp in curves:
+                self.asusd.set_fan_curve(fan_profile, name, pwm, temp, True)
             self.asusd.set_fan_curves_enabled(fan_profile, True)
 
         def done(_result) -> None:
@@ -489,10 +559,7 @@ class FansWindow(Adw.Window):
 
         def work() -> None:
             self.asusd.reset_fan_curves(fan_profile)
-            for key, logical in (
-                ("platform", asusd_mod.ATTR_PPT_PLATFORM),
-                ("cpu", asusd_mod.ATTR_PPT_APU),
-            ):
+            for key, logical in _PPT_FIELDS:
                 if logical in self._attrs and key in defaults:
                     self.asusd.set_armoury(logical, defaults[key])
 
@@ -504,16 +571,15 @@ class FansWindow(Adw.Window):
 
     # -- presets ----------------------------------------------------------
     def _chart_curves(self) -> dict[str, dict]:
-        cpu_pwm, cpu_temp = self.cpu_chart.points()
-        gpu_pwm, gpu_temp = self.gpu_chart.points()
-        return {
-            "CPU": {"pwm": cpu_pwm, "temp": cpu_temp, "enabled": True},
-            "GPU": {"pwm": gpu_pwm, "temp": gpu_temp, "enabled": True},
-        }
+        result: dict[str, dict] = {}
+        for name, chart in self._active_charts():
+            pwm, temp = chart.points()
+            result[name] = {"pwm": pwm, "temp": temp, "enabled": True}
+        return result
 
     def _load_curves(self, curves: dict, source: str) -> None:
         loaded = False
-        for fan, chart in (("CPU", self.cpu_chart), ("GPU", self.gpu_chart)):
+        for fan, chart in self._active_charts():
             curve = curves.get(fan)
             if not curve:
                 continue
@@ -522,6 +588,8 @@ class FansWindow(Adw.Window):
         if not loaded:
             self.window.toast("That curve has no usable points")
             return
+        self._fans_dirty = True
+        self._update_fan_status()
         if self._auto_fans.get_active():
             self.apply_fan_curve()
         else:
@@ -561,7 +629,7 @@ class FansWindow(Adw.Window):
             self._fill_curves_popover(popover)
 
     def _charts_available(self) -> bool:
-        if not self.cpu_chart.get_sensitive() or not self.gpu_chart.get_sensitive():
+        if not any(chart.get_sensitive() for _name, chart in self._active_charts()):
             self.window.toast("Fan curves are not available on this system")
             return False
         return True
@@ -688,16 +756,29 @@ class FansWindow(Adw.Window):
             error=self._failed,
         )
 
-    # -- misc -------------------------------------------------------------
+    # -- live telemetry & misc --------------------------------------------
+    def update_live(self, snapshot: dict) -> None:
+        fans = snapshot.get("fans") or {}
+        gpu = snapshot.get("gpu") or {}
+        self.cpu_chart.set_live(
+            snapshot.get("cpu_temp"), fans.get("cpu"), fans.get("cpu_pwm")
+        )
+        self.gpu_chart.set_live(
+            gpu.get("dgpu"), fans.get("gpu"), fans.get("gpu_pwm")
+        )
+        if self.mid_chart.get_visible():
+            self.mid_chart.set_live(None, fans.get("mid"), fans.get("mid_pwm"))
+
     def _failed(self, exc: Exception) -> None:
         self.window.show_error(exc)
         self.refresh()
 
     def _on_dark(self, *_args) -> None:
         dark = Adw.StyleManager.get_default().get_dark()
-        if hasattr(self, "cpu_chart"):
-            self.cpu_chart.set_dark(dark)
-            self.gpu_chart.set_dark(dark)
+        for attribute in ("cpu_chart", "gpu_chart", "mid_chart"):
+            chart = getattr(self, attribute, None)
+            if chart is not None:
+                chart.set_dark(dark)
 
     def _on_destroy(self, *_args) -> None:
         try:

@@ -482,6 +482,8 @@ class MainWindow(Adw.ApplicationWindow):
     def open_fans_window(self) -> None:
         if self._fans_window is None:
             self._fans_window = FansWindow(self)
+        if self._last_snapshot:
+            self._fans_window.update_live(self._last_snapshot)
         self._fans_window.present()
 
     def forget_fans_window(self, _window) -> None:
@@ -609,6 +611,8 @@ class MainWindow(Adw.ApplicationWindow):
             self._last_snapshot = snapshot
             try:
                 self.main_view.update_live(snapshot)
+                if self._fans_window is not None:
+                    self._fans_window.update_live(snapshot)
                 self.main_view.note_power(snapshot.get("ac_online"))
             except Exception as exc:  # noqa: BLE001
                 log.debug("telemetry UI update failed: %s", exc)

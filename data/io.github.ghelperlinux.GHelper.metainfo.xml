@@ -62,6 +62,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.4.2" date="2026-11-20">
+      <description>
+        <p>Fans and Power fixes, live chart telemetry, MID fan and fPPT support.</p>
+        <ul>
+          <li>Fixed the CPU Boost (EPP) dropdown in Fans and Power showing the last profile's EPP instead of the active profile's EPP, and stopped programmatic PPT slider range updates from triggering spurious writes.</li>
+          <li>Fan charts now plot the live temperature guide line, operating point and header readout, alongside a Fan Profiles status indicator (BIOS default, Custom active, Unsaved changes).</li>
+          <li>Added support for a third MID fan (chart, hwmon readout and curve presets) and the fPPT (PL3) power-limit slider on laptops that expose them.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.1" date="2026-11-20">
       <description>
         <p>Reliable AC/battery profile switching and tuned-ppd coordination.</p>

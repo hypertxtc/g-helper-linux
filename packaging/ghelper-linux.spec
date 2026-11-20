@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.4.1}
+Version:        %{?gh_version}%{!?gh_version:0.4.2}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,6 +64,15 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.2-1
+- Fix Fans and Power reading the last profile's EPP instead of the active
+  profile's EPP, and block programmatic VerticalSlider range clamping from
+  triggering unintended PPT commits
+- Add live temperature/RPM overlay and readout to fan charts plus a Fan
+  Profiles status label (BIOS default, Custom active, Unsaved changes)
+- Add optional MID fan chart, hwmon fan3 telemetry, MID fan presets, and
+  the fPPT (PL3) power-limit slider on models that expose them
+
 * Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.1-1
 - Sync profile switches and AC/battery transitions with tuned-ppd /
   power-profiles-daemon (org.freedesktop.UPower.PowerProfiles) so TuneD's

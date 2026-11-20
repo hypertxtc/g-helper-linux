@@ -218,6 +218,12 @@ class VerticalSlider(Gtk.Box):
         self.append(self.scale)
         self._rebuild_marks()
         self._refresh_label()
+        self.connect("destroy", lambda *_: self._cancel_pending())
+
+    def _cancel_pending(self) -> None:
+        if self._timeout:
+            GLib.source_remove(self._timeout)
+            self._timeout = 0
 
     def _refresh_label(self) -> None:
         self._value_label.set_text(f"{self.scale.get_value():.0f}{self._unit}")
@@ -226,8 +232,7 @@ class VerticalSlider(Gtk.Box):
         self._refresh_label()
         if self._blocked:
             return
-        if self._timeout:
-            GLib.source_remove(self._timeout)
+        self._cancel_pending()
         self._timeout = GLib.timeout_add(300, self._commit)
 
     def _commit(self) -> bool:
@@ -239,9 +244,12 @@ class VerticalSlider(Gtk.Box):
         return self.scale.get_value()
 
     def set_value(self, value: float) -> None:
+        self._cancel_pending()
         self._blocked = True
-        self.scale.set_value(value)
-        self._blocked = False
+        try:
+            self.scale.set_value(value)
+        finally:
+            self._blocked = False
         self._refresh_label()
 
     def set_range(self, lower: float, upper: float) -> None:
@@ -249,7 +257,12 @@ class VerticalSlider(Gtk.Box):
             abs(self.scale.get_adjustment().get_lower() - lower) > 0.01
             or abs(self.scale.get_adjustment().get_upper() - upper) > 0.01
         ):
-            self.scale.set_range(lower, upper)
+            self._cancel_pending()
+            self._blocked = True
+            try:
+                self.scale.set_range(lower, upper)
+            finally:
+                self._blocked = False
             self._rebuild_marks()
         self._refresh_label()
 

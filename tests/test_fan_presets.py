@@ -11,6 +11,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -64,9 +65,39 @@ class NormalizeTests(unittest.TestCase):
         with self.assertRaises(fan_presets.CurveError):
             fan_presets.normalize(loud)
 
+    def test_accepts_mid_fan(self) -> None:
+        three = {
+            **sample(),
+            "MID": curve(
+                [35, 45, 55, 65, 72, 78, 85, 95],
+                [15, 35, 60, 85, 110, 140, 175, 210],
+            ),
+        }
+        cleaned = fan_presets.normalize(three)
+        self.assertEqual(sorted(cleaned), ["CPU", "GPU", "MID"])
+        self.assertIn("MID 35\u201395", fan_presets.summary(cleaned))
+
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(
+            os.environ, {"XDG_CONFIG_HOME": tmp}, clear=False
+        ):
+            name, _entry = fan_presets.add("ThreeFans", three)
+            self.assertEqual(name, "ThreeFans")
+            loaded = fan_presets.load()["ThreeFans"]["curves"]
+            self.assertEqual(sorted(loaded), ["CPU", "GPU", "MID"])
+
+            export_path = Path(tmp) / "three-fans.json"
+            fan_presets.export_file(export_path, "ThreeFansExport", three)
+            fan_presets.remove("ThreeFans")
+            added = fan_presets.import_file(export_path)
+            self.assertEqual(added, ["ThreeFansExport"])
+            self.assertEqual(
+                sorted(fan_presets.load()["ThreeFansExport"]["curves"]),
+                ["CPU", "GPU", "MID"],
+            )
+
     def test_rejects_unknown_fan_and_empty(self) -> None:
         with self.assertRaises(fan_presets.CurveError):
-            fan_presets.normalize({**sample(), "MID": sample()["CPU"]})
+            fan_presets.normalize({**sample(), "AUX": sample()["CPU"]})
         with self.assertRaises(fan_presets.CurveError):
             fan_presets.normalize({})
         with self.assertRaises(fan_presets.CurveError):
