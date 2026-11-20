@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 
 from . import APP_ID, APP_NAME, APP_VERSION
+from . import dbus_setup  # noqa: F401 - attach the main loop before any bus
 from .arguments import parse_gui_arguments
 from .deps import Adw, Gdk, Gio, GLib, Gtk
 from .ui import theme

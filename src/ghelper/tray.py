@@ -16,11 +16,10 @@ import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 
+from . import dbus_setup  # noqa: F401 - the export below needs a main loop
 from .backend import asusd as asusd_mod
 
 log = logging.getLogger(__name__)
-
-DBusGMainLoop(set_as_default=True)
 
 SNI_IFACE = "org.kde.StatusNotifierItem"
 MENU_IFACE = "com.canonical.dbusmenu"

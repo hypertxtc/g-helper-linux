@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.3.1}
+Version:        %{?gh_version}%{!?gh_version:0.3.2}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,6 +64,12 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.3.2-1
+- Attach the GLib main loop before the first session-bus connection, so the
+  KWin helper loading at startup can no longer break the tray icon
+- Add regression tests that import the app, tray and KWin helper in separate
+  processes and check the default main loop is set
+
 * Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.3.1-1
 - Centre the mode card on the whole screen and sit it near the bottom edge
   instead of a fixed fraction of the work area

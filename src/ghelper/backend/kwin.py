@@ -31,6 +31,8 @@ import tempfile
 
 import dbus
 
+from .. import dbus_setup  # noqa: F401 - never open a loop-less bus
+
 log = logging.getLogger(__name__)
 
 BUS_NAME = "org.kde.KWin"

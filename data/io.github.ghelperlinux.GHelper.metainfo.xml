@@ -62,6 +62,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.3.2" date="2026-11-20">
+      <description>
+        <p>Tray icon regression fix.</p>
+        <ul>
+          <li>Attach the GLib main loop before the first session-bus connection. The KWin placement helper now runs at startup, and an earlier connection left dbus-python unable to export the tray icon.</li>
+          <li>Starting hidden and closing to the tray work again, since both depended on that icon.</li>
+          <li>Regression tests cover the import order.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.1" date="2026-11-20">
       <description>
         <p>Overlay placement fix.</p>

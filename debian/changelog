@@ -1,3 +1,15 @@
+ghelper-linux (0.3.2-1) unstable; urgency=medium
+
+  * Attach the GLib main loop before the first session-bus connection.  The
+    KWin placement helper now runs at startup, before the tray module, and was
+    leaving dbus-python with a connection that could not export the tray icon.
+  * With no tray, the application also quit when started with --minimized or
+    closed to the tray; both work again.
+  * Regression tests import the app, the tray and the KWin helper in separate
+    processes and assert the default main loop is set.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Fri, 20 Nov 2026 11:05:00 -0500
+
 ghelper-linux (0.3.1-1) unstable; urgency=medium
 
   * Centre the mode card on the whole screen and place it near the bottom
