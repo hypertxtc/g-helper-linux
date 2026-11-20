@@ -58,6 +58,32 @@ class MainLoopOrderTests(unittest.TestCase):
     def test_importing_display_sets_the_default_loop(self) -> None:
         self.assertEqual(default_loop_state("ghelper.backend.display"), "set")
 
+    def test_importing_asusd_sets_the_default_loop(self) -> None:
+        self.assertEqual(default_loop_state("ghelper.backend.asusd"), "set")
+
+    def test_importing_ppd_sets_the_default_loop(self) -> None:
+        self.assertEqual(default_loop_state("ghelper.backend.ppd"), "set")
+
+    def test_importing_dbus_setup_initializes_glib_threads(self) -> None:
+        code = textwrap.dedent(
+            f"""
+            import sys
+            sys.path.insert(0, {str(SRC)!r})
+            import ghelper.dbus_setup  # noqa: F401
+            import dbus.mainloop.glib as glib_dbus
+            print(glib_dbus._dbus_gthreads_initialized)
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode != 0:
+            raise AssertionError(result.stderr)
+        self.assertEqual(result.stdout.strip().splitlines()[-1], "True")
+
 
 if __name__ == "__main__":
     unittest.main()

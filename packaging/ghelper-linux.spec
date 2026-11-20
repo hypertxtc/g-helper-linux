@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.4.0}
+Version:        %{?gh_version}%{!?gh_version:0.4.1}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,6 +64,16 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.1-1
+- Sync profile switches and AC/battery transitions with tuned-ppd /
+  power-profiles-daemon (org.freedesktop.UPower.PowerProfiles) so TuneD's
+  balanced-battery profile no longer overwrites asusd on unplug
+- Subscribe to asusd PlatformProfile and UPower OnBattery D-Bus signals
+  with transition and settle guards to prevent stale-poll reverts and
+  UI flicker
+- Increment dbusmenu layout revisions on tray updates, initialize dbus-glib
+  thread locks, and report PowerProfiles status in --check
+
 * Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.0-1
 - Add GNOME (Mutter D-Bus), Hyprland (hyprctl) and wlroots (wlr-randr)
   refresh-rate backends, and decouple Panel Overdrive so it works on any

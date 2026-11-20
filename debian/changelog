@@ -1,3 +1,16 @@
+ghelper-linux (0.4.1-1) unstable; urgency=medium
+
+  * Sync profile changes and AC/battery transitions with tuned-ppd /
+    power-profiles-daemon (org.freedesktop.UPower.PowerProfiles) so
+    TuneD's balanced-battery profile does not overwrite asusd on unplug.
+  * Subscribe directly to asusd PlatformProfile and UPower OnBattery
+    D-Bus signals with transition and settle guards to eliminate stale
+    UI state and mid-switch flicker.
+  * Increment tray dbusmenu layout revisions on updates, initialize
+    dbus-glib thread locks, and include PowerProfiles status in --check.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Fri, 20 Nov 2026 14:15:00 -0500
+
 ghelper-linux (0.4.0-1) unstable; urgency=medium
 
   * Support refresh-rate switching on GNOME (Mutter D-Bus), Hyprland

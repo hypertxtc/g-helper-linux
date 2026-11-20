@@ -18,7 +18,7 @@ def _check() -> int:
 
     from .backend import anime as anime_mod
     from .backend import asusd as asusd_mod
-    from .backend import cardwire, display, hotkeys, nvml
+    from .backend import cardwire, display, hotkeys, nvml, ppd
     from .backend import slash as slash_mod
     from .backend.system import Monitor, machine_name, nvidia_pci_devices, rescan_helper
 
@@ -104,6 +104,7 @@ def _check() -> int:
 
     report["sensors"] = Monitor().snapshot()
     report["hotkeys"] = hotkeys.probe()
+    report["power_profiles"] = ppd.state()
     print(json.dumps(report, indent=2, default=str))
     return 0
 
@@ -111,7 +112,7 @@ def _check() -> int:
 def _run_action(args) -> int:
     """One-shot actions, intended for hotkeys and scripts."""
     from .backend import asusd as asusd_mod
-    from .backend import cardwire, display, power_memory
+    from .backend import cardwire, display, power_memory, ppd
 
     try:
         if args.profile or args.charge_limit is not None:
@@ -129,6 +130,7 @@ def _run_action(args) -> int:
                 "custom": (asusd_mod.CUSTOM,),
             }[args.profile]
             profile = next((p for p in preferred if p in choices), preferred[0])
+            ppd.sync_profile(profile)
             client.set_platform_profile(profile)
             # Keep the per-power-source memory in step with scripted changes,
             # exactly as the window and hotkeys do.

@@ -118,6 +118,7 @@ class MainView(Gtk.Box):
         self._fans_button.connect("clicked", lambda *_: self.window.open_fans_window())
         grid.attach(self._fans_button, column, 0, 1, 1)
         self.perf_section.add(grid)
+        self.set_profile(self._profile)
         self.append(self.perf_section)
 
     def _build_gpu(self) -> None:
@@ -316,7 +317,6 @@ class MainView(Gtk.Box):
 
     def _collect(self) -> dict:
         data: dict = {
-            "profile": None,
             "cw_available": cw.available(),
             "cw_current": None,
             "cw_error": None,
@@ -336,10 +336,6 @@ class MainView(Gtk.Box):
             data["pending"] = self.asusd.pending_reboot()
         except Exception as exc:  # noqa: BLE001
             log.debug("pending reboot check failed: %s", exc)
-        try:
-            data["profile"] = self.asusd.platform_profile()
-        except Exception as exc:  # noqa: BLE001
-            data["profile_error"] = str(exc)
 
         if data["cw_available"]:
             try:
@@ -404,8 +400,6 @@ class MainView(Gtk.Box):
         self._panel = data.get("panel")
         self._mode = data.get("mode")
         self._rates = data.get("rates") or []
-        if data.get("profile") is not None:
-            self.set_profile(int(data["profile"]))
         self._apply_gpu(data)
         self._apply_screen(data)
         self._apply_keyboard(data)

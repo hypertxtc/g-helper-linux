@@ -9,9 +9,11 @@ unprivileged D-Bus call; asusd's D-Bus policy allows the ``wheel`` group.
 from __future__ import annotations
 
 import logging
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 import dbus
+
+from .. import dbus_setup  # noqa: F401 - attach the main loop before any bus
 
 log = logging.getLogger(__name__)
 
@@ -114,6 +116,26 @@ class Asusd:
     @property
     def version(self) -> str:
         return self._version or "unknown"
+
+    def watch_platform_profile(self, callback: Callable[[int], None]):
+        """Invoke ``callback(profile)`` when asusd updates PlatformProfile."""
+
+        def _on_changed(interface, changed, _invalidated) -> None:
+            if str(interface) != PLATFORM_IFACE or "PlatformProfile" not in changed:
+                return
+            try:
+                profile = int(changed["PlatformProfile"])
+            except (TypeError, ValueError):
+                return
+            callback(profile)
+
+        return self._bus.add_signal_receiver(
+            _on_changed,
+            signal_name="PropertiesChanged",
+            dbus_interface=PROPS_IFACE,
+            bus_name=BUS_NAME,
+            path=ROOT_PATH,
+        )
 
     # -- low level helpers ---------------------------------------------
     def _object(self, path: str):

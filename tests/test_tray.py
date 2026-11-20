@@ -8,6 +8,7 @@ import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -65,6 +66,11 @@ class LayoutTests(unittest.TestCase):
             int(menu_items[tray_mod.ITEM_PERFORMANCE]["toggle-state"]), 1
         )
         self.assertEqual(int(menu_items[tray_mod.ITEM_BALANCED]["toggle-state"]), 0)
+
+        low_menu = make_menu("standard", profile=asusd.LOW_POWER)
+        low_items = items(low_menu)
+        self.assertEqual(int(low_items[tray_mod.ITEM_QUIET]["toggle-state"]), 1)
+        self.assertEqual(int(low_items[tray_mod.ITEM_BALANCED]["toggle-state"]), 0)
 
     def test_gpu_radio_follows_cardwire(self) -> None:
         for state, active in (
@@ -145,6 +151,30 @@ class EventTests(unittest.TestCase):
         menu._tray.select_gpu = chosen.append
         menu.Event(tray_mod.ITEM_SMART, "hovered", None, 0)
         self.assertEqual(chosen, [])
+
+    def test_revision_increments_on_profile_and_gpu_changes(self) -> None:
+        tray = tray_mod.Tray.__new__(tray_mod.Tray)
+        tray.profile = asusd.BALANCED
+        tray.gpu_state = "standard"
+        tray.revision = 0
+        tray.tooltip_title = "G-Helper"
+        tray.tooltip_body = ""
+        tray._icon = mock.Mock()
+        menu = tray_mod._TrayMenu.__new__(tray_mod._TrayMenu)
+        menu._tray = tray
+        menu.LayoutUpdated = mock.Mock()
+        tray._menu = menu
+
+        self.assertEqual(int(menu._layout()[0]), 0)
+        tray.set_profile(asusd.QUIET)
+        self.assertEqual(tray.revision, 1)
+        menu.LayoutUpdated.assert_called_with(1, 0)
+        self.assertEqual(int(menu._layout()[0]), 1)
+
+        tray.set_gpu_state("eco")
+        self.assertEqual(tray.revision, 2)
+        menu.LayoutUpdated.assert_called_with(2, 0)
+        self.assertEqual(int(menu._layout()[0]), 2)
 
 
 if __name__ == "__main__":

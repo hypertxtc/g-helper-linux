@@ -110,6 +110,8 @@ class Application(Adw.Application):
             self._state_applied = True
             self.window.apply_saved_state()
         self.window.place_near_panel()
+        self.window.sync_profile_now()
+        self.window.main_view.refresh()
 
     def toggle_window(self) -> None:
         window = self.window

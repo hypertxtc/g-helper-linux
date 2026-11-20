@@ -335,6 +335,7 @@ src/ghelper/
   backend/hotkeys.py    passive evdev reader for Fn / ROG keys
   backend/kwin.py       places the window next to the KDE panel
   backend/nvml.py       ctypes reader for active NVIDIA dGPUs (libnvidia-ml.so.1)
+  backend/ppd.py        PowerProfiles (tuned-ppd/PPD) and UPower sync
   backend/slash.py      ROG Slash LED bar control through asusd
   backend/system.py     sysfs telemetry (temps, fans, battery, load)
   backend/display.py    refresh-rate control (KDE, GNOME, Hyprland, wlroots)

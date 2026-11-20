@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from . import APP_ID
 from .backend.asusd import (
@@ -19,7 +20,7 @@ from .backend.asusd import (
     AsusdError,
 )
 from .backend import cardwire as cw
-from .backend import power_memory
+from .backend import power_memory, ppd
 from .backend.settings import Settings
 from .backend.system import Monitor, ac_online
 from .deps import Adw, Gio, GLib, Gtk
@@ -35,6 +36,7 @@ log = logging.getLogger(__name__)
 
 MIN_WIDTH = 390
 MIN_HEIGHT = 520
+POWER_SETTLE_SECONDS = 2.5
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -63,6 +65,13 @@ class MainWindow(Adw.ApplicationWindow):
         self._tray = None
         self._tick_id = 0
         self._profile = 0
+        self._profile_seq = 0
+        self._profile_writes_inflight = 0
+        self._expected_profile: int | None = None
+        self._power_settle_until = 0.0
+        self._power_confirm_ids: list[int] = []
+        self._profile_watch = None
+        self._power_watch = None
         self._sync_pending = False
         self._tick_count = 0
         self._last_snapshot: dict = {}
@@ -71,7 +80,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._hotkeys_window = None
         self._hotkeys = None
         self._overlay = None
-        self._last_ac: bool | None = None
+        self._last_ac: bool | None = ac_online()
         self._power_id = 0
 
         self.profiles = self._detect_profiles()
@@ -118,6 +127,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.connect("close-request", self._on_close)
         self.connect("destroy", self._on_destroy)
 
+        self._start_profile_watch()
+        self._start_power_watch()
         self.start_hotkeys()
         self._tick()
         self._tick_id = GLib.timeout_add_seconds(2, self._tick)
@@ -379,9 +390,19 @@ class MainWindow(Adw.ApplicationWindow):
         if not self.asusd_available:
             self.toast("asusd is not running")
             return
+        self._profile_seq += 1
+        seq = self._profile_seq
+        self._profile_writes_inflight += 1
+        self._expected_profile = profile
+        self._power_settle_until = 0.0
+        self._cancel_power_confirms()
+        self._apply_profile_ui(profile)
         label = self.profile_label(profile)
 
         def work() -> None:
+            # Sync tuned-ppd before asusd so TuneD finishes changing profiles
+            # before asusd applies fan curves and EPP.
+            ppd.sync_profile(profile)
             self.asusd.set_platform_profile(profile)
             # G-Helper on Windows remembers the mode that was active on each
             # power source; mirror this explicit choice into asusd's own slot
@@ -390,11 +411,18 @@ class MainWindow(Adw.ApplicationWindow):
 
         self.tasks.submit(
             work,
-            done=lambda _result: self._profile_written(profile, label),
-            error=self._profile_write_failed,
+            done=lambda _result: self._profile_written(profile, label, seq),
+            error=lambda exc: self._profile_write_failed(exc, seq),
         )
 
-    def _profile_written(self, profile: int, label: str) -> None:
+    def _profile_written(
+        self, profile: int, label: str, seq: int | None = None
+    ) -> None:
+        self._profile_writes_inflight = max(0, self._profile_writes_inflight - 1)
+        if seq is not None and seq != self._profile_seq:
+            return
+        self._expected_profile = None
+        self._power_settle_until = 0.0
         self._apply_profile_ui(profile)
         self.toast(f"{label} mode")
         self._sync_profile(force=True)
@@ -405,7 +433,13 @@ class MainWindow(Adw.ApplicationWindow):
         if not self.get_visible() and self._last_ac is not None:
             self.show_mode_overlay(profile, self._last_ac)
 
-    def _profile_write_failed(self, exc: Exception) -> None:
+    def _profile_write_failed(
+        self, exc: Exception, seq: int | None = None
+    ) -> None:
+        self._profile_writes_inflight = max(0, self._profile_writes_inflight - 1)
+        if seq is None or seq == self._profile_seq:
+            self._expected_profile = None
+            self._power_settle_until = 0.0
         self.show_error(exc)
         self._sync_profile(force=True)
 
@@ -438,6 +472,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.profiles = self._detect_profiles() or self.profiles
         self._update_banner()
         if self.asusd_available:
+            self._start_profile_watch()
             self.refresh_all()
             self.toast(f"Connected to asusd {self.asusd.version}")
         else:
@@ -476,19 +511,88 @@ class MainWindow(Adw.ApplicationWindow):
             application.quit()
 
     # -- periodic refresh ------------------------------------------------
+    @staticmethod
+    def _remove_watch(watch) -> None:
+        if watch is None:
+            return
+        try:
+            watch.remove()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _start_profile_watch(self) -> None:
+        if self._profile_watch is not None:
+            return
+        try:
+            self._profile_watch = self.asusd.watch_platform_profile(
+                self._on_profile_signal
+            )
+        except Exception as exc:  # noqa: BLE001 - bus may be absent in tests
+            log.debug("platform profile watch unavailable: %s", exc)
+
+    def _stop_profile_watch(self) -> None:
+        self._remove_watch(self._profile_watch)
+        self._profile_watch = None
+
+    def _start_power_watch(self) -> None:
+        if self._power_watch is not None:
+            return
+        try:
+            self._power_watch = ppd.watch_ac_online(self._on_upower_ac)
+        except Exception as exc:  # noqa: BLE001 - bus may be absent in tests
+            log.debug("UPower AC watch unavailable: %s", exc)
+
+    def _stop_power_watch(self) -> None:
+        self._remove_watch(self._power_watch)
+        self._power_watch = None
+
+    def _on_profile_signal(self, profile: int) -> None:
+        if self._profile_writes_inflight > 0:
+            if self._expected_profile is not None and profile == self._expected_profile:
+                self._apply_profile_ui(profile)
+            return
+        if self._expected_profile is not None:
+            if profile == self._expected_profile:
+                self._expected_profile = None
+                self._power_settle_until = 0.0
+            elif time.monotonic() < self._power_settle_until:
+                return
+            else:
+                self._expected_profile = None
+                self._power_settle_until = 0.0
+        self._profile_seq += 1
+        self._apply_profile_ui(profile)
+
     def _sync_profile(self, *, force: bool = False) -> None:
         if not self.asusd_available or self._sync_pending:
             return
         self._sync_pending = True
+        seq = self._profile_seq
         self.tasks.submit(
             self.asusd.platform_profile,
-            done=lambda profile: self._sync_profile_done(profile, force),
+            done=lambda profile: self._sync_profile_done(profile, force, seq),
             error=self._sync_profile_failed,
         )
 
-    def _sync_profile_done(self, profile: int, force: bool) -> None:
+    def _sync_profile_done(
+        self, profile: int, force: bool, seq: int | None = None
+    ) -> None:
         self._sync_pending = False
-        if force or profile != self._profile:
+        if self._profile_writes_inflight > 0:
+            return
+        if seq is not None and seq != self._profile_seq:
+            return
+        if self._expected_profile is not None:
+            if profile == self._expected_profile:
+                self._expected_profile = None
+                self._power_settle_until = 0.0
+            elif time.monotonic() < self._power_settle_until:
+                return
+            else:
+                self._expected_profile = None
+                self._power_settle_until = 0.0
+        ui_drifted = getattr(self.main_view, "_profile", None) != profile
+        if force or profile != self._profile or ui_drifted:
             self._apply_profile_ui(profile)
 
     def _sync_profile_failed(self, exc: Exception) -> None:
@@ -525,6 +629,9 @@ class MainWindow(Adw.ApplicationWindow):
         if self._tick_id:
             GLib.source_remove(self._tick_id)
             self._tick_id = 0
+        self._cancel_power_confirms()
+        self._stop_profile_watch()
+        self._stop_power_watch()
         self.stop_hotkeys()
         self.tasks.shutdown()
         return False
@@ -537,6 +644,9 @@ class MainWindow(Adw.ApplicationWindow):
             if source:
                 GLib.source_remove(source)
                 setattr(self, attribute, 0)
+        self._cancel_power_confirms()
+        self._stop_profile_watch()
+        self._stop_power_watch()
         if self._overlay is not None:
             self._overlay.dismiss()
 
@@ -544,37 +654,121 @@ class MainWindow(Adw.ApplicationWindow):
     def _poll_power(self) -> bool:
         """Watch the cheap AC flag so the OSD follows the cable, not the tick."""
         ac = ac_online()
-        if ac is None:
-            return True
-        if self._last_ac is None:
-            self._last_ac = ac
-        elif ac != self._last_ac:
-            self._last_ac = ac
-            log.debug("power source changed to %s", "AC" if ac else "battery")
-            self._announce_power(ac)
+        if ac is not None:
+            self._handle_power_change(ac)
         return True
 
-    def _announce_power(self, ac: bool) -> None:
-        """Show the mode asusd is about to apply for the new power source.
+    def _on_upower_ac(self, ac: bool) -> None:
+        self._handle_power_change(ac)
 
-        Reading the remembered value instead of waiting for asusd to write the
-        profile removes a race: the card and the buttons agree immediately,
-        and the next profile sync confirms it.
-        """
+    def _handle_power_change(self, ac: bool) -> None:
+        if self._last_ac is None:
+            self._last_ac = ac
+            return
+        if ac == self._last_ac:
+            return
+        self._last_ac = ac
+        self._profile_seq += 1
+        seq = self._profile_seq
+        log.debug("power source changed to %s", "AC" if ac else "battery")
+        self._announce_power(ac, seq)
 
-        def probe() -> int:
+    def _announce_power(self, ac: bool, seq: int | None = None) -> None:
+        """Coordinate tuned-ppd and asusd on power-source transitions."""
+        self._profile_writes_inflight += 1
+        self._expected_profile = None
+        self._power_settle_until = 0.0
+        self._cancel_power_confirms()
+
+        def probe() -> tuple[int, bool]:
             remembered = power_memory.target(self.asusd, ac)
-            return self.asusd.platform_profile() if remembered is None else remembered
+            if remembered is None:
+                return self.asusd.platform_profile(), False
+            GLib.idle_add(self._begin_power_ui, remembered, ac, seq)
+            if seq is not None and self._profile_seq != seq:
+                return remembered, True
+            ppd.sync_profile(remembered)
+            if seq is not None and self._profile_seq != seq:
+                return remembered, True
+            try:
+                self.asusd.set_platform_profile(remembered)
+            except AsusdError as exc:
+                log.debug("power switch profile assert failed: %s", exc)
+            return remembered, True
 
         self.tasks.submit(
             probe,
-            done=lambda profile: self._show_power_status(profile, ac),
-            error=lambda _exc: self._show_power_status(self._profile, ac),
+            done=lambda res: self._finish_power_switch(
+                res[0], ac, switched=res[1], seq=seq
+            ),
+            error=lambda exc: self._power_switch_failed(exc, ac, seq),
         )
 
-    def _show_power_status(self, profile: int, ac: bool) -> None:
+    def _begin_power_ui(
+        self, profile: int, ac: bool, seq: int | None = None
+    ) -> bool:
+        if seq is not None and seq != self._profile_seq:
+            return False
+        self._expected_profile = profile
+        self._power_settle_until = time.monotonic() + POWER_SETTLE_SECONDS
         self._apply_profile_ui(profile)
         self.show_mode_overlay(profile, ac)
+        return False
+
+    def _finish_power_switch(
+        self,
+        profile: int,
+        ac: bool,
+        *,
+        switched: bool = False,
+        seq: int | None = None,
+    ) -> None:
+        self._profile_writes_inflight = max(0, self._profile_writes_inflight - 1)
+        if seq is not None and seq != self._profile_seq:
+            return
+        if not switched:
+            self._apply_profile_ui(profile)
+            self.show_mode_overlay(profile, ac)
+        else:
+            self._expected_profile = profile
+            self._power_settle_until = max(
+                self._power_settle_until, time.monotonic() + POWER_SETTLE_SECONDS
+            )
+            self._apply_profile_ui(profile)
+        self._schedule_power_confirms()
+
+    def _power_switch_failed(
+        self, exc: Exception, ac: bool, seq: int | None = None
+    ) -> None:
+        self._profile_writes_inflight = max(0, self._profile_writes_inflight - 1)
+        log.debug("power switch probe failed: %s", exc)
+        if seq is not None and seq != self._profile_seq:
+            return
+        self._expected_profile = None
+        self._power_settle_until = 0.0
+        self.show_mode_overlay(self._profile, ac)
+        self._schedule_power_confirms()
+
+    def _cancel_power_confirms(self) -> None:
+        for source_id in self._power_confirm_ids:
+            GLib.source_remove(source_id)
+        self._power_confirm_ids.clear()
+
+    def _schedule_power_confirms(self) -> None:
+        self._cancel_power_confirms()
+        delays = (800, int(POWER_SETTLE_SECONDS * 1000) + 100)
+        for delay_ms in delays:
+            holder: list[int] = []
+
+            def _confirm(_holder: list[int] = holder) -> bool:
+                if _holder and _holder[0] in self._power_confirm_ids:
+                    self._power_confirm_ids.remove(_holder[0])
+                self._sync_profile(force=True)
+                return False
+
+            source_id = GLib.timeout_add(delay_ms, _confirm)
+            holder.append(source_id)
+            self._power_confirm_ids.append(source_id)
 
     def show_mode_overlay(self, profile: int, ac: bool) -> None:
         """Display the mode OSD; harmless on compositors without placement."""

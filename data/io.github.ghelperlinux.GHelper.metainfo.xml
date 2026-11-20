@@ -62,6 +62,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.4.1" date="2026-11-20">
+      <description>
+        <p>Reliable AC/battery profile switching and tuned-ppd coordination.</p>
+        <ul>
+          <li>Profile changes and AC/battery transitions now sync with tuned-ppd and power-profiles-daemon (org.freedesktop.UPower.PowerProfiles), preventing TuneD from reverting asusd back to Balanced on unplug.</li>
+          <li>Main window subscribes directly to asusd PlatformProfile and UPower OnBattery signals with transition guards so the window, overlay and tray stay in sync without flicker.</li>
+          <li>Tray dbusmenu layout revisions increment on profile and GPU updates, dbus-glib thread locks are initialized on startup, and --check now reports PowerProfiles status.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.0" date="2026-11-20">
       <description>
         <p>Multi-desktop display control, NVIDIA telemetry and lid lighting.</p>

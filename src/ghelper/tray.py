@@ -201,7 +201,12 @@ class _TrayMenu(dbus.service.Object):
             self._item(ITEM_SHOW, self._text("Open G-Helper")),
             self._item(ITEM_SEP1, self._separator()),
             self._item(
-                ITEM_QUIET, self._radio("Silent", current == asusd_mod.QUIET, 1)
+                ITEM_QUIET,
+                self._radio(
+                    "Silent",
+                    current in (asusd_mod.QUIET, asusd_mod.LOW_POWER),
+                    1,
+                ),
             ),
             self._item(
                 ITEM_BALANCED,
@@ -225,7 +230,8 @@ class _TrayMenu(dbus.service.Object):
             dbus.Struct(child, signature="ia{sv}av", variant_level=1) for child in children
         ]
         root = self._item(0, {"children-display": dbus.String("submenu")}, children)
-        return dbus.Struct((dbus.UInt32(0), root), signature="u(ia{sv}av)")
+        revision = getattr(self._tray, "revision", 0)
+        return dbus.Struct((dbus.UInt32(revision), root), signature="u(ia{sv}av)")
 
     @dbus.service.method(MENU_IFACE, in_signature="iias", out_signature="u(ia{sv}av)")
     def GetLayout(self, parent_id: int, recursion_depth: int, property_names):
@@ -297,6 +303,7 @@ class Tray:
         self.active = False
         self.profile = profile
         self.gpu_state = gpu_state
+        self.revision = 0
         self.tooltip_title = "G-Helper"
         self.tooltip_body = ""
         self._on_show = on_show
@@ -335,8 +342,9 @@ class Tray:
         if state == self.gpu_state:
             return
         self.gpu_state = state
+        self.revision += 1
         try:
-            self._menu.LayoutUpdated(1, 0)
+            self._menu.LayoutUpdated(self.revision, 0)
         except Exception as exc:  # noqa: BLE001
             log.debug("tray GPU update failed: %s", exc)
 
@@ -344,8 +352,9 @@ class Tray:
         if profile == self.profile:
             return
         self.profile = profile
+        self.revision += 1
         try:
-            self._menu.LayoutUpdated(1, 0)
+            self._menu.LayoutUpdated(self.revision, 0)
             self._icon.NewToolTip()
         except Exception as exc:  # noqa: BLE001
             log.debug("tray update failed: %s", exc)
