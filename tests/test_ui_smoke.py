@@ -122,6 +122,7 @@ class WindowSmokeTests(unittest.TestCase):
         self.assertIsNotNone(view._overdrive_row)
         self.assertIsNotNone(view.slash_section)
         self.assertIsNotNone(view.anime_section)
+        self.assertFalse(self.window.update_banner.get_revealed())
         # The status line is filled from telemetry or left empty when sensors
         # are missing; either way it must be a label with text support.
         self.assertIsNotNone(view.perf_section.header._live)
@@ -141,6 +142,8 @@ class WindowSmokeTests(unittest.TestCase):
         self.assertIsNotNone(page._slash_section)
         self.assertIsNotNone(page._anime_section)
         self.assertIsNotNone(page._setup_button)
+        self.assertIsNotNone(page._update_button)
+        self.assertIsNotNone(page._check_updates_switch)
 
     def test_fans_window_builds(self) -> None:
         self.window.open_fans_window()

@@ -106,6 +106,11 @@ def main(argv: list[str] | None = None) -> int:
         help="start hidden in the tray (GUI mode)",
     )
     parser.add_argument(
+        "--quit",
+        action="store_true",
+        help="quit a running ghelper-linux instance and exit",
+    )
+    parser.add_argument(
         "--learn-fn",
         action="store_true",
         help="print ASUS hotkey codes until interrupted (Fn / ROG keys)",
@@ -190,6 +195,8 @@ def main(argv: list[str] | None = None) -> int:
         gui_args += ["--page", args.page]
     if args.minimized:
         gui_args.append("--minimized")
+    if args.quit:
+        gui_args.append("--quit")
     gui_args += rest
     application = Application()
     return application.run(gui_args)

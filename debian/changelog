@@ -1,3 +1,12 @@
+ghelper-linux (0.4.6-1) unstable; urgency=medium
+
+  * Add background and manual GitHub Releases update checking via an in-app
+    banner, Update dialog, and Settings -> About controls.
+  * Add ghelper-linux --quit for single-instance shutdown, and make setup.sh
+    stop any running instance cleanly before relaunching on upgrades.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Sat, 21 Nov 2026 13:24:00 -0500
+
 ghelper-linux (0.4.5-1) unstable; urgency=medium
 
   * Fix GNOME Mutter "Can't set layout mode" refresh-rate switching error by

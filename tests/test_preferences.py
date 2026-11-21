@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from ghelper.arguments import parse_gui_arguments  # noqa: E402
+from ghelper.arguments import is_quit_requested, parse_gui_arguments  # noqa: E402
 from ghelper.backend import settings as settings_mod  # noqa: E402
 
 
@@ -52,6 +52,11 @@ class GuiArgumentsTests(unittest.TestCase):
         self.assertEqual(
             parse_gui_arguments(["ghelper-linux", "--page", "nope"]), ("main", False)
         )
+
+    def test_quit_flag(self) -> None:
+        self.assertFalse(is_quit_requested(["ghelper-linux"]))
+        self.assertFalse(is_quit_requested(["ghelper-linux", "--page", "settings"]))
+        self.assertTrue(is_quit_requested(["ghelper-linux", "--quit"]))
 
 
 class SettingsTests(unittest.TestCase):
@@ -150,6 +155,12 @@ class SettingsTests(unittest.TestCase):
         self.assertIs(store.get("onboarding_seen"), False)
         store.set("onboarding_seen", True)
         self.assertIs(settings_mod.Settings().get("onboarding_seen"), True)
+
+    def test_check_updates_round_trip(self) -> None:
+        store = settings_mod.Settings()
+        self.assertIs(store.get("check_updates"), True)
+        store.set("check_updates", False)
+        self.assertIs(settings_mod.Settings().get("check_updates"), False)
 
     def test_unknown_keys_are_not_persisted(self) -> None:
         store = settings_mod.Settings()

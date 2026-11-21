@@ -29,3 +29,8 @@ def parse_gui_arguments(arguments: list[str]) -> tuple[str, bool]:
             hidden = True
         index += 1
     return page, hidden
+
+
+def is_quit_requested(arguments: list[str]) -> bool:
+    """Return True when ``--quit`` was passed to stop a running instance."""
+    return any(arg == "--quit" for arg in arguments[1:])

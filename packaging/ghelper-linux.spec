@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.4.5}
+Version:        %{?gh_version}%{!?gh_version:0.4.6}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -68,6 +68,12 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Sat Nov 21 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.6-1
+- Add background and manual GitHub Releases update checking with an update
+  banner, release notes / copy-command dialog, and Settings -> About toggle
+- Add ghelper-linux --quit for single-instance shutdown, and teach setup.sh
+  to cleanly stop any running instance before relaunching the updated version
+
 * Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.5-1
 - Fix GNOME Mutter "Can't set layout mode" refresh-rate failure by only sending
   layout-mode when supports-changing-layout-mode is enabled

@@ -28,6 +28,7 @@ DEFAULTS: dict[str, Any] = {
     "fn_actions": {"148": "toggle_window"},
     "gpu_apps": {},
     "onboarding_seen": False,
+    "check_updates": True,
     "settings_version": SETTINGS_VERSION,
 }
 
@@ -46,6 +47,8 @@ def _coerce(key: str, value: Any) -> Any:
             return int(value)
         except (TypeError, ValueError):
             return default
+    if isinstance(default, str):
+        return "" if value is None else str(value)
     if isinstance(default, dict):
         if not isinstance(value, dict):
             return dict(default)

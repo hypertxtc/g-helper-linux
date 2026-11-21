@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 
 from . import APP_ID
@@ -81,6 +82,8 @@ class MainWindow(Adw.ApplicationWindow):
         self._hotkeys_window = None
         self._setup_window = None
         self._onboarding_checked = False
+        self._update_checked = False
+        self._latest_update = None
         self._hotkeys = None
         self._overlay = None
         self._last_ac: bool | None = ac_online()
@@ -115,6 +118,10 @@ class MainWindow(Adw.ApplicationWindow):
         self.banner = Adw.Banner(title="asusd is not available", button_label="Retry")
         self.banner.connect("button-clicked", self._on_retry_asusd)
         toolbar.add_top_bar(self.banner)
+        self.update_banner = Adw.Banner(title="", button_label="Update\u2026")
+        self.update_banner.set_revealed(False)
+        self.update_banner.connect("button-clicked", self._on_update_banner_clicked)
+        toolbar.add_top_bar(self.update_banner)
         toolbar.set_content(self.scroll)
 
         self.toasts.set_child(toolbar)
@@ -535,6 +542,72 @@ class MainWindow(Adw.ApplicationWindow):
                 self.settings.set("onboarding_seen", True)
 
         self.run(setup_check.collect_checks, done=done)
+
+    def maybe_check_updates(self) -> None:
+        if (
+            self._update_checked
+            or not self.settings.get("check_updates")
+            or os.environ.get("GHELPER_UI_TESTS") == "1"
+        ):
+            return
+        self._update_checked = True
+        from .backend import updates
+
+        self.run(
+            updates.check_latest,
+            done=self._on_update_checked,
+            error=lambda exc: log.debug("update check failed: %s", exc),
+        )
+
+    def _on_update_checked(self, info) -> None:
+        self._latest_update = info
+        if info.available:
+            self.update_banner.set_title(f"Update available: v{info.latest}")
+            self.update_banner.set_revealed(True)
+        else:
+            self.update_banner.set_revealed(False)
+        if self._settings_window is not None:
+            self._settings_window.sync_update_status(info)
+
+    def _on_update_banner_clicked(self, _banner: Adw.Banner) -> None:
+        if self._latest_update is not None:
+            self.show_update_dialog(self._latest_update)
+
+    def show_update_dialog(self, info) -> None:
+        from .backend import updates
+
+        parts = [f"You are running v{info.current}."]
+        if info.notes:
+            parts.append(info.notes)
+        parts.append(f"Run in Terminal to update:\n{updates.UPDATE_COMMAND}")
+        dialog = Adw.AlertDialog(
+            heading=f"G-Helper v{info.latest} is available",
+            body="\n\n".join(parts),
+        )
+        dialog.add_response("later", "Later")
+        dialog.add_response("open", "Release page")
+        dialog.add_response("copy", "Copy update command")
+        dialog.set_response_appearance("copy", Adw.ResponseAppearance.SUGGESTED)
+
+        def on_response(_dialog, response: str) -> None:
+            if response == "copy":
+                display = Gdk.Display.get_default()
+                if display is not None:
+                    display.get_clipboard().set(updates.UPDATE_COMMAND)
+                self.toast("Update command copied \u2014 paste in Terminal")
+            elif response == "open":
+                try:
+                    Gio.AppInfo.launch_default_for_uri(info.url, None)
+                except GLib.Error as exc:
+                    self.show_error(exc)
+
+        dialog.connect("response", on_response)
+        parent = (
+            self._settings_window
+            if self._settings_window is not None and self._settings_window.is_active()
+            else self
+        )
+        dialog.present(parent)
 
     def copy_diagnostics(self, button: Gtk.Button | None = None) -> None:
         from .backend import setup_check

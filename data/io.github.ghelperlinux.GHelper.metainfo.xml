@@ -62,6 +62,15 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.4.6" date="2026-11-21">
+      <description>
+        <p>In-app update checker and smoother upgrades.</p>
+        <ul>
+          <li>Added background and manual GitHub Releases update checking with a main-window Update banner, release notes and copy-command dialog, and Settings → About controls.</li>
+          <li>Added ghelper-linux --quit for single-instance shutdown and updated setup.sh to stop any running instance cleanly before relaunching upgrades.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.5" date="2026-11-20">
       <description>
         <p>GNOME Mutter refresh-rate fix, NVIDIA Ultimate MUX telemetry and charge-battery support.</p>

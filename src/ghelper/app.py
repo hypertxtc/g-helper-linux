@@ -9,7 +9,7 @@ from pathlib import Path
 
 from . import APP_ID, APP_NAME, APP_VERSION
 from . import dbus_setup  # noqa: F401 - attach the main loop before any bus
-from .arguments import parse_gui_arguments
+from .arguments import is_quit_requested, parse_gui_arguments
 from .deps import Adw, Gdk, Gio, GLib, Gtk
 from .ui import theme
 from .window import MainWindow
@@ -33,7 +33,11 @@ class Application(Adw.Application):
 
     # -- lifecycle -------------------------------------------------------
     def do_command_line(self, command_line) -> int:  # noqa: N802 - GObject virtual
-        page, hidden = parse_gui_arguments(list(command_line.get_arguments()))
+        argv = list(command_line.get_arguments())
+        if is_quit_requested(argv):
+            self.quit()
+            return 0
+        page, hidden = parse_gui_arguments(argv)
         self._show(page, hidden)
         return 0
 
@@ -111,6 +115,7 @@ class Application(Adw.Application):
             self._state_applied = True
             self.window.apply_saved_state()
             self.window.maybe_open_onboarding()
+            self.window.maybe_check_updates()
         self.window.place_near_panel()
         self.window.sync_profile_now()
         self.window.main_view.refresh()

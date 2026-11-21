@@ -167,14 +167,17 @@ ghelper-linux --page settings       # open the settings window
 ghelper-linux --page hotkeys        # learn and map Fn / ROG keys
 ghelper-linux --page setup          # open the prerequisite Setup Check window
 ghelper-linux --minimized           # start in the tray (used by Run on Startup)
+ghelper-linux --quit                # exit any running tray/window instance
 ghelper-linux --learn-fn            # print Fn / ROG key codes until Ctrl+C
 ghelper-linux --check               # JSON backend report, ideal for bug reports
 ghelper-linux --debug               # verbose logging
 ```
 
 Only one copy runs at a time. A second launch forwards its `--page` or
-`--minimized` option to the running window and exits immediately, so tray
-icons, telemetry and profile polling never duplicate.
+`--minimized` option to the running window and exits immediately (or `--quit`
+to close it cleanly), so tray icons, telemetry and profile polling never
+duplicate. Startup update checks and manual **Check for updates** live under
+**Settings → About**.
 
 A man page is installed alongside the binary: `man ghelper-linux` lists every
 option, the config files and the hotkey defaults.

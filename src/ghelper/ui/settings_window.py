@@ -398,13 +398,24 @@ class SettingsWindow(Adw.Window):
         self._cardwire_value = ValueRow("cardwire", "—")
         self._machine_value = ValueRow("Machine", machine_name())
         self._version_value = ValueRow("g-helper-linux", APP_VERSION)
+        self._updates_value = ValueRow("Updates", "\u2014")
         for row in (
             self._asusd_value,
             self._cardwire_value,
             self._machine_value,
             self._version_value,
+            self._updates_value,
         ):
             section.add(row)
+        self._check_updates_switch = ToggleRow(
+            "Check for updates on startup",
+            subtitle="Checks GitHub Releases in the background.",
+        )
+        self._check_updates_switch.set_active(bool(self.settings.get("check_updates")))
+        self._check_updates_switch.switch.connect(
+            "notify::active", self._on_check_updates_toggled
+        )
+        section.add(self._check_updates_switch)
         self._setup_button = flat_button("Setup Check\u2026", small=True)
         self._setup_button.connect(
             "clicked", lambda *_: self.window.open_setup_window()
@@ -417,6 +428,12 @@ class SettingsWindow(Adw.Window):
         actions.append(self._setup_button)
         actions.append(self._copy_diag_button)
         section.add(actions)
+
+        self._update_button = flat_button("Check for updates", small=True)
+        self._update_button.connect("clicked", lambda *_: self._check_updates())
+        update_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        update_row.append(self._update_button)
+        section.add(update_row)
         body.append(section)
 
     def _profile_dropdown(self) -> Gtk.DropDown:
@@ -568,6 +585,42 @@ class SettingsWindow(Adw.Window):
             self._hotkey_status.set_value("not readable \u2014 install the udev rule")
 
         self._apply_battery_values(data.get("battery") or {})
+        if getattr(self.window, "_latest_update", None) is not None:
+            self.sync_update_status(self.window._latest_update)
+
+    def sync_update_status(self, info) -> None:
+        if info.available:
+            self._updates_value.set_value(f"v{info.latest} available")
+        else:
+            self._updates_value.set_value(f"Up to date (v{info.current})")
+
+    def _on_check_updates_toggled(self, switch: Gtk.Switch, _param) -> None:
+        if not self._loading:
+            self.settings.set("check_updates", switch.get_active())
+
+    def _check_updates(self) -> None:
+        from ..backend import updates
+
+        self._update_button.set_sensitive(False)
+        self._updates_value.set_value("Checking\u2026")
+
+        def done(info) -> None:
+            if self._update_button.get_root() is not None:
+                self._update_button.set_sensitive(True)
+            self.window._on_update_checked(info)
+            self.sync_update_status(info)
+            if info.available:
+                self.window.show_update_dialog(info)
+            else:
+                self.window.toast("g-helper-linux is up to date")
+
+        def failed(exc: Exception) -> None:
+            if self._update_button.get_root() is not None:
+                self._update_button.set_sensitive(True)
+            self._updates_value.set_value("Check failed")
+            self.window.show_error(exc)
+
+        self.window.run(updates.check_latest, done=done, error=failed)
 
     def _apply_battery_values(self, battery: dict) -> None:
         if not battery:

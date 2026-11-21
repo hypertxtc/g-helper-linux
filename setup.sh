@@ -15,6 +15,7 @@ NO_LAUNCH=0
 BUILD_ASUSCTL=0
 LOCAL_DIR=""
 NEEDS_REBOOT=0
+WAS_INSTALLED=0
 WORK_DIR=""
 
 usage() {
@@ -489,11 +490,39 @@ PY
     fi
 }
 
+stop_running_ghelper() {
+    if [ "$DRY_RUN" -eq 1 ] || [ "$WAS_INSTALLED" -ne 1 ]; then
+        return 0
+    fi
+    if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+        return 0
+    fi
+    log "Stopping any running ghelper-linux instance before relaunch..."
+    gdbus call --session \
+        --dest io.github.ghelperlinux.GHelper \
+        --object-path /io/github/ghelperlinux/GHelper \
+        --method org.gtk.Actions.Activate quit '[]' '{}' >/dev/null 2>&1 \
+        || ghelper-linux --quit >/dev/null 2>&1 \
+        || true
+
+    local i
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        if ! python3 -c 'import dbus; raise SystemExit(0 if dbus.SessionBus().name_has_owner("io.github.ghelperlinux.GHelper") else 1)' 2>/dev/null; then
+            break
+        fi
+        sleep 0.2
+    done
+}
+
 main() {
     parse_args "$@"
 
     if [ "${EUID:-$(id -u)}" -eq 0 ]; then
         die "Do not run setup.sh as root. Run it as your normal user; it will invoke sudo when needed."
+    fi
+
+    if command -v ghelper-linux >/dev/null 2>&1; then
+        WAS_INSTALLED=1
     fi
 
     trap cleanup EXIT
@@ -512,6 +541,7 @@ main() {
     fi
 
     configure_services_and_lsm
+    stop_running_ghelper
     report_environment
 
     echo ""
@@ -522,8 +552,13 @@ main() {
         if [ "$NO_LAUNCH" -eq 0 ] && [ "$DRY_RUN" -eq 0 ] \
             && { [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; } \
             && command -v ghelper-linux >/dev/null 2>&1; then
-            log "Opening G-Helper Setup Check..."
-            nohup ghelper-linux --page setup >/dev/null 2>&1 &
+            if [ "$WAS_INSTALLED" -eq 1 ]; then
+                log "Launching updated G-Helper..."
+                nohup ghelper-linux >/dev/null 2>&1 &
+            else
+                log "Opening G-Helper Setup Check..."
+                nohup ghelper-linux --page setup >/dev/null 2>&1 &
+            fi
         fi
     fi
 }
