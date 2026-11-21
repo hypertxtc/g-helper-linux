@@ -9,9 +9,40 @@ It is **not** a driver, daemon replacement or firmware tool. It asks the
 existing Linux services to do the work, exactly like G-Helper asks the ASUS
 System Control Interface on Windows.
 
-![Status](https://img.shields.io/badge/status-early%20development-orange)
+[![Latest Release](https://img.shields.io/github/v/release/hypertxtc/g-helper-linux)](https://github.com/hypertxtc/g-helper-linux/releases/latest)
+[![CI](https://github.com/hypertxtc/g-helper-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/hypertxtc/g-helper-linux/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 
 ![g-helper-linux main window](docs/screenshot.png)
+
+## Quick Install
+
+On **Zorin OS 18+ / Ubuntu 24.04+**, **Fedora**, or **Arch**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hypertxtc/g-helper-linux/main/setup.sh | bash
+```
+
+What `setup.sh` handles automatically:
+
+- **Zorin OS 18 / Ubuntu 24.04+:** Installs `cardwire`, headless `asusctl` (`asusd`), GTK4/libadwaita dependencies, and `ghelper-linux` (downloads the prebuilt Ubuntu 24.04 `asusctl` `.deb` from releases, or builds it locally with `--build-asusctl`). Safely appends `,bpf` to GRUB `lsm=` if Kernel BPF LSM is not active yet, enables `cardwired` and `asus-shutdown`, and checks NVIDIA / Wayland session status.
+- **Fedora:** Offers to add the Terra repo if `asusctl`/`cardwire` are not yet available, installs the RPM, enables services, and starts G-Helper.
+- **Arch:** Installs `asusctl` and GTK4/PyGObject dependencies via `pacman`, checks for `cardwire`, and runs `./install.sh`.
+
+First-time launches open **Setup Check** automatically if any prerequisite still needs attention (also reachable from **Settings → Setup Check…** or `ghelper-linux --page setup`).
+
+### Upgrading
+
+G-Helper checks GitHub Releases automatically on startup (configurable under **Settings → About**) and shows an **Update available** banner when a newer version is out. Re-running the same `curl ... | bash` command stops any running tray instance cleanly, upgrades the package, and relaunches the updated app.
+
+## Tested hardware & distros
+
+| Laptop | GPU setup | Distro / Desktop | Status |
+| --- | --- | --- | --- |
+| ASUS ROG Zephyrus G14 (`GA402RK`) | AMD Radeon 680M + RX 6800S | Fedora KDE Plasma (Wayland) | Daily-driven reference machine |
+| ASUS TUF Gaming A15 (`FA507UV`) | AMD Radeon 780M + NVIDIA RTX 4060 | Zorin OS 18 Pro (GNOME Wayland) | Profiles, fans, PPT, Mutter 144 Hz, NVML, battery, `cardwire` |
+
+Have it running on another ASUS laptop or distro? Open an issue or attach `ghelper-linux --check` output.
 
 ## What it does
 
@@ -44,9 +75,9 @@ System Control Interface on Windows.
 
 ## Requirements
 
-- Linux with `asusd` from [asusctl](https://gitlab.com/asus-linux/asusctl)
+- Linux with `asusd` from [asusctl](https://github.com/OpenGamingCollective/asusctl)
   running (`systemctl status asusd`). Your user must be allowed to talk to it
-  (the default policy allows the `wheel` group).
+  (the default policy allows the `wheel` / `sudo` / `adm` groups).
 - Python 3.10+, PyGObject, GTK 4 and libadwaita.
 - [cardwire](https://github.com/OpenGamingCollective/cardwire) + `cardwired`
   for GPU modes (required by the RPM and DEB packages; running from source
@@ -87,24 +118,9 @@ sudo pacman -S python-gobject python-dbus gtk4 libadwaita asusctl
 # cardwire: see https://opengamingcollective.github.io/cardwire
 ```
 
-## Install
+## Install & packaging
 
-### Quick Install (One Command)
-
-On **Zorin OS 18+ / Ubuntu 24.04+** or **Fedora**:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/hypertxtc/g-helper-linux/main/setup.sh | bash
-```
-
-What `setup.sh` handles automatically:
-
-- **Zorin OS 18 / Ubuntu 24.04+:** Installs `cardwire`, headless `asusctl` (`asusd`), GTK4/libadwaita dependencies, and `ghelper-linux` (using the prebuilt Ubuntu 24.04 `asusctl` `.deb` from releases or building it locally with `--build-asusctl`). Safely appends `,bpf` to your GRUB `lsm=` parameter if Kernel BPF LSM is not active yet, enables `cardwired` and `asus-shutdown`, and checks NVIDIA / Wayland session status.
-  - *NVIDIA on Zorin OS:* Cardwire GPU switching requires a Wayland session. If Zorin defaulted to Xorg, log out, click your username, click the bottom-right gear icon, and select **Zorin Desktop on Wayland**.
-- **Fedora:** Offers to add the Terra repo if `asusctl`/`cardwire` are not yet available, installs the RPM, enables services, and starts G-Helper's Setup Check.
-- **Arch:** Installs `asusctl` and GTK4/PyGObject dependencies via `pacman`, checks for `cardwire`, and runs `./install.sh`.
-
-When G-Helper opens for the first time with anything still unconfigured, it launches **Setup Check** automatically (also reachable anytime from **Settings → Setup Check…** or `ghelper-linux --page setup`).
+Prefer the [Quick Install](#quick-install) one-liner above on Zorin OS 18 / Ubuntu 24.04+, Fedora, or Arch.
 
 ### From source
 
@@ -154,9 +170,10 @@ the same tests from `debian/rules`. `lintian` is clean.
 
 **From CI**
 
-Every push builds both packages and uploads them as the `rpm` and `deb`
-artifacts on the workflow run. Pushing a `v*` tag additionally attaches both to
-that GitHub release, so a release page always carries installable packages.
+Every push builds both `ghelper-linux` packages and uploads them as the `rpm`
+and `deb` workflow artifacts. Pushing a `v*` tag additionally builds the
+headless Ubuntu 24.04 `asusctl` DEB (`asusctl-deb`) and attaches all three
+packages to that GitHub release.
 
 ## Usage
 
@@ -334,22 +351,24 @@ Cardwire's own GUI. Changes made elsewhere are picked up on the next refresh
 │ Gtk4 + libadwaita UI     │
 │  Main control panel      │
 │  Fans + Power            │
-│  Settings                │
+│  Settings / Setup Check  │
 └───────────┬──────────────┘
-            │ D-Bus (unprivileged)        │ subprocess / sysfs
+            │ D-Bus (unprivileged)        │ subprocess / sysfs / pkexec
             ▼                             ▼
    xyz.ljones.Asusd  ────────────►  asusd  (root)
      Platform, FanCurves,                 │
      AsusArmoury attrs                    ▼
-                                    EC / BIOS / hwmon
+                                    EC / BIOS / hwmon / NVML
 
    cardwire CLI ────────────────►  cardwired (eBPF-LSM GPU blocking)
-   kscreen-doctor ──────────────►  KWin
+   Display backend ─────────────►  KWin (kscreen-doctor) / GNOME Mutter D-Bus
+                                    Hyprland (hyprctl) / wlroots (wlr-randr)
 ```
 
 Source layout:
 
 ```
+setup.sh                one-command installer and upgrader
 src/ghelper/
   backend/anime.py      AniMe Matrix control through asusd
   backend/asusd.py      D-Bus wrapper (profiles, fans, battery, armoury)
@@ -360,20 +379,38 @@ src/ghelper/
   backend/kwin.py       places the window next to the KDE panel
   backend/nvml.py       ctypes reader for active NVIDIA dGPUs (libnvidia-ml.so.1)
   backend/ppd.py        PowerProfiles (tuned-ppd/PPD) and UPower sync
+  backend/setup_check.py  prerequisite checks, pkexec fixes, diagnostics JSON
   backend/slash.py      ROG Slash LED bar control through asusd
   backend/system.py     sysfs telemetry (temps, fans, battery, load)
+  backend/updates.py    GitHub Releases update checker
   backend/display.py    refresh-rate control (KDE, GNOME, Hyprland, wlroots)
   ui/main_view.py       G-Helper-style main page
   ui/fans_window.py     Fans + Power window (PPT + fan charts)
-  ui/settings_window.py power, firmware GPU, hotkeys, startup
+  ui/settings_window.py power, firmware GPU, hotkeys, startup, updates
+  ui/setup_window.py    first-run / Settings Setup Check window
   ui/hotkeys_window.py  learn and map Fn / ROG keys
   ui/chart.py           interactive RPM fan charts
   ui/widgets.py         sections, mode buttons, sliders, combos
   ui/format.py          tray/status text formatting
   arguments.py          window options forwarded between instances
   tasks.py              ordered background worker for all backend calls
-  window.py             main window, tray, telemetry, geometry
+  window.py             main window, tray, telemetry, update banner, geometry
 ```
+
+## Troubleshooting
+
+- **Eco, Optimized, or Smart says Ultimate MUX mode is active:** When booted in
+  **Ultimate** mode (`gpu_mux_mode = 0`), the dGPU drives the display directly so
+  Cardwire cannot block it without blanking the screen. Click **Standard** and
+  reboot once to switch to Optimus/hybrid, unlocking Eco, Optimized, and Smart.
+- **Cardwire / GPU modes unavailable on Zorin OS or Ubuntu with NVIDIA:**
+  Cardwire requires a **Wayland** session and `bpf` enabled in
+  `/sys/kernel/security/lsm`. Open **Settings → Setup Check…** to verify both:
+  use **Enable BPF LSM** + reboot once if `bpf` is missing, and switch at the
+  login screen (click your username → bottom-right gear icon → **Zorin Desktop
+  on Wayland**) if you are on X11.
+- **Filing a bug report:** Click **Settings → Copy diagnostics** (or run
+  `ghelper-linux --check`) and paste the JSON report into your issue.
 
 ## Safety notes
 
@@ -429,22 +466,26 @@ validation and the RPM and DEB builds.
   driver, through `libnvidia-ml.so.1` (NVML) when `runtime_status` is active —
   when runtime-suspended, the dGPU stays asleep so battery is not drained, and
   its temperature reads blank.
-- The iGPU/dGPU split relies on the kernel's `boot_vga` flag, which is the
-  reliable signal on hybrid laptops in their normal (iGPU) boot. In a
-  dGPU-only MUX boot the two can be reported the other way round.
-- The **Rescan dGPU** action runs `pkexec` on the single backend worker, so
-  other backend refreshes wait while the password prompt is open.
+- On hybrid AMD + NVIDIA laptops, a single `amdgpu` hwmon node is always
+  classified as the iGPU so Ultimate MUX (`boot_vga` flipped) still reads
+  NVIDIA telemetry through NVML. On dual-AMD laptops, the iGPU/dGPU split
+  relies on `boot_vga`, which swaps in a dGPU-only MUX boot.
+- Privileged `pkexec` actions (**Rescan dGPU** and **Setup Check** fixes) run
+  on the single backend worker, so other backend refreshes wait while the
+  password prompt is open.
 
 ## Roadmap
 
 **Near term**
 
+- NVIDIA Dynamic Boost and GPU thermal target sliders (`nv_dynamic_boost`, `nv_temp_target`)
+- Searchable `.desktop` app picker for Smart Mode (**Settings → dGPU Apps**)
 - GNOME / wlroots window placement
 
 **Next milestone**
 
 - Localisation (gettext)
-- Release packaging outside Fedora (Arch AUR, Debian)
+- Arch AUR package, signed APT repo (GitHub Pages), and Fedora COPR
 
 **Later / out of scope for now**
 
@@ -456,7 +497,7 @@ validation and the RPM and DEB builds.
 ## Credits
 
 - Inspired by [seerge/g-helper](https://github.com/seerge/g-helper) (GPL-3.0).
-- Hardware access thanks to [asusctl/asusd](https://gitlab.com/asus-linux/asusctl)
+- Hardware access thanks to [asusctl/asusd](https://github.com/OpenGamingCollective/asusctl)
   by Luke Jones and contributors.
 - GPU blocking thanks to [cardwire](https://github.com/OpenGamingCollective/cardwire).
 
