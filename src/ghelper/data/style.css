@@ -256,6 +256,31 @@ window.dark .gh-status-error {
   color: #ff7b72;
 }
 
+.gh-status-warn {
+  color: #b45309;
+}
+
+window.dark .gh-status-warn {
+  color: #fbbf24;
+}
+
+.gh-setup-card {
+  background: #ffffff;
+  border: 1px solid #dcdcdc;
+  border-radius: 4px;
+  padding: 10px 12px;
+}
+
+window.dark .gh-setup-card {
+  background: #2e2e2e;
+  border-color: #373737;
+}
+
+.gh-setup-title {
+  font-weight: 600;
+  font-size: 9.5pt;
+}
+
 .gh-scale trough {
   min-height: 4px;
   background: #cfcfcf;

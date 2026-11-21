@@ -27,6 +27,7 @@ DEFAULTS: dict[str, Any] = {
     "fn_enabled": True,
     "fn_actions": {"148": "toggle_window"},
     "gpu_apps": {},
+    "onboarding_seen": False,
     "settings_version": SETTINGS_VERSION,
 }
 

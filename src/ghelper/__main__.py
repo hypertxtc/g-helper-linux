@@ -14,98 +14,9 @@ from . import APP_NAME, APP_VERSION
 
 def _check() -> int:
     """Print a JSON backend report; useful on new machines and in bug reports."""
-    import os
+    from .backend.setup_check import build_diagnostics_report
 
-    from .backend import anime as anime_mod
-    from .backend import asusd as asusd_mod
-    from .backend import cardwire, display, hotkeys, nvml, ppd
-    from .backend import slash as slash_mod
-    from .backend.system import Monitor, machine_name, nvidia_pci_devices, rescan_helper
-
-    report: dict = {"machine": machine_name(), "version": APP_VERSION}
-    helper = rescan_helper()
-    report["rescan"] = {
-        "helper": str(helper) if helper is not None else None,
-        "libexec_override": os.environ.get("GHELPER_LIBEXECDIR") or None,
-    }
-    try:
-        client = asusd_mod.Asusd()
-        client.connect()
-        report["asusd"] = {
-            "available": True,
-            "version": client.version,
-            "profile": client.platform_profile(),
-            "profile_choices": client.platform_choices(),
-            "charge_limit": client.charge_limit(),
-            "fan_curves_balanced": client.fan_curves(asusd_mod.BALANCED),
-            "armoury": {
-                name: client.armoury(name)
-                for name in (
-                    asusd_mod.ATTR_DGPU_DISABLE,
-                    asusd_mod.ATTR_GPU_MUX,
-                    asusd_mod.ATTR_PANEL_OVERDRIVE,
-                    asusd_mod.ATTR_PPT_APU,
-                    asusd_mod.ATTR_PPT_PLATFORM,
-                    asusd_mod.ATTR_PPT_FPPT,
-                )
-                if client.armoury_available(name)
-            },
-            "resolved_attributes": client.resolved_attributes(),
-        }
-    except Exception as exc:  # noqa: BLE001
-        report["asusd"] = {"available": False, "error": str(exc)}
-
-    try:
-        report["cardwire"] = {"available": cardwire.available(), **cardwire.get_state()}
-        report["cardwire"]["gpus"] = cardwire.list_gpus()
-    except Exception as exc:  # noqa: BLE001
-        report["cardwire"] = {"available": cardwire.available(), "error": str(exc)}
-
-    report["display"] = {
-        "available": display.available(),
-        "backend": display.backend_name(),
-    }
-    if report["display"]["available"]:
-        try:
-            panel = display.primary_panel()
-            report["display"]["panel"] = panel["name"] if panel else None
-            report["display"]["refresh_rates"] = (
-                display.refresh_rates(panel) if panel else []
-            )
-        except Exception as exc:  # noqa: BLE001
-            report["display"]["error"] = str(exc)
-    else:
-        report["display"]["reason"] = display.unavailable_reason()
-
-    report["nvidia"] = {
-        "nvml_available": nvml.available(),
-        "devices": nvidia_pci_devices(),
-    }
-
-    slash = slash_mod.Slash()
-    try:
-        report["slash"] = (
-            {"available": True, **slash.state()}
-            if slash.available
-            else {"available": False}
-        )
-    except Exception as exc:  # noqa: BLE001
-        report["slash"] = {"available": False, "error": str(exc)}
-
-    anime = anime_mod.Anime()
-    try:
-        report["anime"] = (
-            {"available": True, **anime.state()}
-            if anime.available
-            else {"available": False}
-        )
-    except Exception as exc:  # noqa: BLE001
-        report["anime"] = {"available": False, "error": str(exc)}
-
-    report["sensors"] = Monitor().snapshot()
-    report["hotkeys"] = hotkeys.probe()
-    report["power_profiles"] = ppd.state()
-    print(json.dumps(report, indent=2, default=str))
+    print(json.dumps(build_diagnostics_report(), indent=2, default=str))
     return 0
 
 
@@ -186,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--page",
-        choices=["main", "fans", "settings", "hotkeys"],
+        choices=["main", "fans", "settings", "hotkeys", "setup"],
         help="open a specific window",
     )
     parser.add_argument(

@@ -62,6 +62,15 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.4.4" date="2026-11-20">
+      <description>
+        <p>Guided prerequisite onboarding and one-command installer.</p>
+        <ul>
+          <li>Added a one-command setup.sh installer covering Zorin OS 18 / Ubuntu 24.04+, Fedora and Arch, plus a headless Ubuntu 24.04 asusctl DEB build script and CI release artifact.</li>
+          <li>Added an in-app Setup Check window (--page setup and Settings) with NVIDIA, Wayland, Kernel BPF LSM and hotkey diagnostics, Copy diagnostic report, and one-click pkexec fixes.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.3" date="2026-11-20">
       <description>
         <p>Complete package prerequisite declarations.</p>

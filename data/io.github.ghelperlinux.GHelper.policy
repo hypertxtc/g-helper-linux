@@ -19,4 +19,16 @@
     <annotate key="org.freedesktop.policykit.exec.path">@LIBEXECDIR@/rescan-pci</annotate>
     <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
   </action>
+
+  <action id="io.github.ghelperlinux.ghelper.setup-fix">
+    <description>Configure g-helper-linux system prerequisites</description>
+    <message>Authentication is required to configure G-Helper system services and permissions</message>
+    <defaults>
+      <allow_anonymous>no</allow_anonymous>
+      <allow_active>auth_admin_keep</allow_active>
+      <allow_inactive>auth_admin</allow_inactive>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">@LIBEXECDIR@/setup-fix</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
 </policyconfig>

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 
@@ -23,7 +24,7 @@ from .backend import cardwire as cw
 from .backend import power_memory, ppd
 from .backend.settings import Settings
 from .backend.system import Monitor, ac_online
-from .deps import Adw, Gio, GLib, Gtk
+from .deps import Adw, Gdk, Gio, GLib, Gtk
 from .tasks import TaskRunner
 from .ui.fans_window import FansWindow
 from .ui.format import status_line
@@ -78,6 +79,8 @@ class MainWindow(Adw.ApplicationWindow):
         self._fans_window: FansWindow | None = None
         self._settings_window: SettingsWindow | None = None
         self._hotkeys_window = None
+        self._setup_window = None
+        self._onboarding_checked = False
         self._hotkeys = None
         self._overlay = None
         self._last_ac: bool | None = ac_online()
@@ -506,6 +509,54 @@ class MainWindow(Adw.ApplicationWindow):
 
     def forget_hotkeys_window(self, _window) -> None:
         self._hotkeys_window = None
+
+    def open_setup_window(self, initial_items=None) -> None:
+        if self._setup_window is None:
+            from .ui.setup_window import SetupWindow
+
+            self._setup_window = SetupWindow(self, initial_items=initial_items)
+        elif initial_items is not None:
+            self._setup_window._apply(list(initial_items))
+        self._setup_window.present()
+
+    def forget_setup_window(self, _window) -> None:
+        self._setup_window = None
+
+    def maybe_open_onboarding(self) -> None:
+        if self._onboarding_checked or self.settings.get("onboarding_seen"):
+            return
+        self._onboarding_checked = True
+        from .backend import setup_check
+
+        def done(items) -> None:
+            if setup_check.needs_attention(items):
+                self.open_setup_window(initial_items=items)
+            else:
+                self.settings.set("onboarding_seen", True)
+
+        self.run(setup_check.collect_checks, done=done)
+
+    def copy_diagnostics(self, button: Gtk.Button | None = None) -> None:
+        from .backend import setup_check
+
+        if button is not None:
+            button.set_sensitive(False)
+
+        def done(report: dict) -> None:
+            if button is not None and button.get_root() is not None:
+                button.set_sensitive(True)
+            text = json.dumps(report, indent=2, default=str)
+            display = Gdk.Display.get_default()
+            if display is not None:
+                display.get_clipboard().set(text)
+            self.toast("Diagnostic report copied")
+
+        def failed(exc: Exception) -> None:
+            if button is not None and button.get_root() is not None:
+                button.set_sensitive(True)
+            self.show_error(exc)
+
+        self.run(setup_check.build_diagnostics_report, done=done, error=failed)
 
     def quit_app(self) -> None:
         application = self.get_application()

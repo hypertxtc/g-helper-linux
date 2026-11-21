@@ -1,0 +1,58 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Privileged helper invoked via pkexec from Settings -> Setup Check.
+# Only a fixed allowlist of prerequisite actions is accepted.
+set -eu
+
+if [ "$#" -ne 1 ]; then
+    echo "usage: ghelper-setup-fix {start-asusd|enable-cardwired|reload-udev|enable-bpf-lsm}" >&2
+    exit 2
+fi
+
+case "$1" in
+    start-asusd)
+        systemctl daemon-reload
+        udevadm control --reload-rules 2>/dev/null || true
+        systemctl enable asus-shutdown.service 2>/dev/null || true
+        systemctl start asusd.service
+        ;;
+    enable-cardwired)
+        systemctl daemon-reload
+        systemctl enable cardwired.service
+        case ",$(cat /sys/kernel/security/lsm 2>/dev/null || true)," in
+            *,bpf,*) systemctl start cardwired.service ;;
+        esac
+        ;;
+    reload-udev)
+        udevadm control --reload-rules
+        udevadm trigger --subsystem-match=input
+        ;;
+    enable-bpf-lsm)
+        current="$(cat /sys/kernel/security/lsm 2>/dev/null || true)"
+        case ",${current}," in
+            *,bpf,*) exit 0 ;;
+        esac
+        case "$current" in
+            ""|*[!a-z0-9_,]*)
+                echo "Could not read a valid LSM list from /sys/kernel/security/lsm." >&2
+                exit 1
+                ;;
+        esac
+        if [ ! -d /etc/default/grub.d ] || ! command -v update-grub >/dev/null 2>&1; then
+            echo "GRUB auto-configuration requires /etc/default/grub.d and update-grub." >&2
+            exit 1
+        fi
+        cfg="/etc/default/grub.d/90-ghelper-cardwire-lsm.cfg"
+        cat > "$cfg" <<EOF
+# Added by g-helper-linux to enable kernel BPF LSM for cardwire.
+GRUB_CMDLINE_LINUX_DEFAULT="\${GRUB_CMDLINE_LINUX_DEFAULT:-} lsm=${current},bpf"
+EOF
+        chmod 644 "$cfg"
+        update-grub
+        ;;
+    *)
+        echo "usage: ghelper-setup-fix {start-asusd|enable-cardwired|reload-udev|enable-bpf-lsm}" >&2
+        exit 2
+        ;;
+esac

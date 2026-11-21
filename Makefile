@@ -68,6 +68,8 @@ install: $(ICONPNG)
 		$(UDEVDIR)/60-ghelper-hotkeys.rules
 	install -Dm755 data/ghelper-rescan-pci \
 		$(LIBEXECDIR)/rescan-pci
+	install -Dm755 data/ghelper-setup-fix \
+		$(LIBEXECDIR)/setup-fix
 	install -d $(POLICYDIR)
 	sed 's|@LIBEXECDIR@|$(LIBEXECDIR_PREFIX)|g' data/$(APPID).policy \
 		> $(POLICYDIR)/$(APPID).policy
@@ -89,6 +91,7 @@ uninstall:
 	rm -f $(UNITDIR)/ghelper-automation.service
 	rm -f $(UDEVDIR)/60-ghelper-hotkeys.rules
 	rm -f $(LIBEXECDIR)/rescan-pci
+	rm -f $(LIBEXECDIR)/setup-fix
 	rm -f $(POLICYDIR)/$(APPID).policy
 
 rpm:

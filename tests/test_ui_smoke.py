@@ -94,6 +94,7 @@ class WindowSmokeTests(unittest.TestCase):
             cls.window._settings_window,
             cls.window._fans_window,
             cls.window._hotkeys_window,
+            cls.window._setup_window,
         ):
             if page is not None:
                 page.destroy()
@@ -139,6 +140,7 @@ class WindowSmokeTests(unittest.TestCase):
         self.assertIsNotNone(page._smart_switch)
         self.assertIsNotNone(page._slash_section)
         self.assertIsNotNone(page._anime_section)
+        self.assertIsNotNone(page._setup_button)
 
     def test_fans_window_builds(self) -> None:
         self.window.open_fans_window()
@@ -182,6 +184,19 @@ class WindowSmokeTests(unittest.TestCase):
         # could not; an empty status means the failure path broke.
         self.assertTrue(page._status.get_text().strip())
         self.assertIsNotNone(page._empty)
+
+    def test_setup_window_builds(self) -> None:
+        self.window.open_setup_window()
+        page = self.window._setup_window
+        self.assertIsNotNone(page)
+        self.assertTrue(pump(page.get_visible), "setup window never mapped")
+        self.assertTrue(
+            pump(lambda: not page._refresh_pending), "setup refresh never finished"
+        )
+        self.assertEqual(page.get_title(), "Setup Check")
+        self.assertTrue(page._headline.get_text().strip())
+        self.assertGreaterEqual(len(page._items), 5)
+        self.assertIsNotNone(page._list_box.get_first_child())
 
 
 if __name__ == "__main__":

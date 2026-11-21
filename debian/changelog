@@ -1,3 +1,14 @@
+ghelper-linux (0.4.4-1) unstable; urgency=medium
+
+  * Add a one-command bootstrap installer (setup.sh) targeting Zorin OS 18
+    / Ubuntu 24.04+, Fedora and Arch, alongside a headless Ubuntu 24.04
+    asusctl .deb build script and CI release job.
+  * Add an in-app Setup Check onboarding dialog (--page setup and Settings)
+    with allowlisted pkexec prerequisite fixes, NVIDIA/Wayland/BPF LSM
+    diagnostics, and a Copy diagnostic report action.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Fri, 20 Nov 2026 19:26:00 -0500
+
 ghelper-linux (0.4.3-1) unstable; urgency=medium
 
   * Require cardwire and asusctl in DEB Depends and RPM Requires alongside

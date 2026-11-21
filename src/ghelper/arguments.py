@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-PAGES = ("main", "fans", "settings", "hotkeys")
+PAGES = ("main", "fans", "settings", "hotkeys", "setup")
 
 
 def parse_gui_arguments(arguments: list[str]) -> tuple[str, bool]:

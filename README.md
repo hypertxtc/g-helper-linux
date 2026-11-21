@@ -89,6 +89,25 @@ sudo pacman -S python-gobject python-dbus gtk4 libadwaita asusctl
 
 ## Install
 
+### Quick Install (One Command)
+
+On **Zorin OS 18+ / Ubuntu 24.04+** or **Fedora**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hypertxtc/g-helper-linux/main/setup.sh | bash
+```
+
+What `setup.sh` handles automatically:
+
+- **Zorin OS 18 / Ubuntu 24.04+:** Installs `cardwire`, headless `asusctl` (`asusd`), GTK4/libadwaita dependencies, and `ghelper-linux` (using the prebuilt Ubuntu 24.04 `asusctl` `.deb` from releases or building it locally with `--build-asusctl`). Safely appends `,bpf` to your GRUB `lsm=` parameter if Kernel BPF LSM is not active yet, enables `cardwired` and `asus-shutdown`, and checks NVIDIA / Wayland session status.
+  - *NVIDIA on Zorin OS:* Cardwire GPU switching requires a Wayland session. If Zorin defaulted to Xorg, log out, click your username, click the bottom-right gear icon, and select **Zorin Desktop on Wayland**.
+- **Fedora:** Offers to add the Terra repo if `asusctl`/`cardwire` are not yet available, installs the RPM, enables services, and starts G-Helper's Setup Check.
+- **Arch:** Installs `asusctl` and GTK4/PyGObject dependencies via `pacman`, checks for `cardwire`, and runs `./install.sh`.
+
+When G-Helper opens for the first time with anything still unconfigured, it launches **Setup Check** automatically (also reachable anytime from **Settings → Setup Check…** or `ghelper-linux --page setup`).
+
+### From source
+
 From this checkout:
 
 ```bash
@@ -146,6 +165,7 @@ ghelper-linux                       # main G-Helper-style window
 ghelper-linux --page fans           # open Fans + Power directly
 ghelper-linux --page settings       # open the settings window
 ghelper-linux --page hotkeys        # learn and map Fn / ROG keys
+ghelper-linux --page setup          # open the prerequisite Setup Check window
 ghelper-linux --minimized           # start in the tray (used by Run on Startup)
 ghelper-linux --learn-fn            # print Fn / ROG key codes until Ctrl+C
 ghelper-linux --check               # JSON backend report, ideal for bug reports

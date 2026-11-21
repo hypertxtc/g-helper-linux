@@ -109,6 +109,7 @@ class InstalledFilesTests(unittest.TestCase):
             "data/60-ghelper-hotkeys.rules",
             "data/ghelper-automation.service",
             "data/ghelper-rescan-pci",
+            "data/ghelper-setup-fix",
             "docs/ghelper-linux.1",
             f"data/{app_id()}.desktop",
             f"data/{app_id()}.metainfo.xml",
@@ -186,23 +187,29 @@ class PolicyTests(unittest.TestCase):
         self.root = ET.parse(ROOT / f"data/{app_id()}.policy").getroot()
 
     def test_action_id_is_namespaced(self) -> None:
-        action = self.root.find("action")
-        assert action is not None
+        action_ids = {action.get("id") for action in self.root.findall("action")}
         self.assertEqual(
-            action.get("id"), "io.github.ghelperlinux.ghelper.rescan-pci"
+            action_ids,
+            {
+                "io.github.ghelperlinux.ghelper.rescan-pci",
+                "io.github.ghelperlinux.ghelper.setup-fix",
+            },
         )
 
     def test_policy_uses_the_install_prefix_placeholder(self) -> None:
-        annotation = self.root.find(
-            "action/annotate[@key='org.freedesktop.policykit.exec.path']"
-        )
-        assert annotation is not None
+        paths = {
+            annotation.text
+            for annotation in self.root.findall(
+                "action/annotate[@key='org.freedesktop.policykit.exec.path']"
+            )
+        }
         # The installers substitute the real prefix, so /usr/local works too.
-        self.assertEqual(annotation.text, "@LIBEXECDIR@/rescan-pci")
+        self.assertEqual(paths, {"@LIBEXECDIR@/rescan-pci", "@LIBEXECDIR@/setup-fix"})
 
     def test_helper_is_packaged(self) -> None:
         spec = (ROOT / "packaging/ghelper-linux.spec").read_text(encoding="utf-8")
         self.assertIn("%{_libexecdir}/ghelper-linux/rescan-pci", spec)
+        self.assertIn("%{_libexecdir}/ghelper-linux/setup-fix", spec)
         self.assertIn("%{_datadir}/polkit-1/actions/", spec)
 
 

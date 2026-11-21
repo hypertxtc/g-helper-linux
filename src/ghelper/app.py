@@ -86,6 +86,7 @@ class Application(Adw.Application):
             "fans": window.open_fans_window,
             "settings": window.open_settings_window,
             "hotkeys": window.open_hotkeys_window,
+            "setup": window.open_setup_window,
         }.get(page)
         if opener is not None:
             # A page request opens only that window.  Showing the main window
@@ -109,6 +110,7 @@ class Application(Adw.Application):
         if not self._state_applied:
             self._state_applied = True
             self.window.apply_saved_state()
+            self.window.maybe_open_onboarding()
         self.window.place_near_panel()
         self.window.sync_profile_now()
         self.window.main_view.refresh()

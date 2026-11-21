@@ -33,6 +33,14 @@ class GuiArgumentsTests(unittest.TestCase):
             parse_gui_arguments(["ghelper-linux", "--page", "hotkeys"]),
             ("hotkeys", False),
         )
+        self.assertEqual(
+            parse_gui_arguments(["ghelper-linux", "--page", "setup"]),
+            ("setup", False),
+        )
+        self.assertEqual(
+            parse_gui_arguments(["ghelper-linux", "--page=setup"]),
+            ("setup", False),
+        )
 
     def test_hidden_flags(self) -> None:
         for flag in ("--minimized", "--hidden", "-m"):
@@ -136,6 +144,12 @@ class SettingsTests(unittest.TestCase):
             settings_mod.Settings().get("gpu_apps"),
             {"/usr/bin/steam": "steam", "/usr/bin/blender": "blender"},
         )
+
+    def test_onboarding_seen_round_trip(self) -> None:
+        store = settings_mod.Settings()
+        self.assertIs(store.get("onboarding_seen"), False)
+        store.set("onboarding_seen", True)
+        self.assertIs(settings_mod.Settings().get("onboarding_seen"), True)
 
     def test_unknown_keys_are_not_persisted(self) -> None:
         store = settings_mod.Settings()

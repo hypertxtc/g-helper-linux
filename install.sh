@@ -39,6 +39,8 @@ install -Dm644 "$HERE/data/60-ghelper-hotkeys.rules" \
     "$DESTDIR$PREFIX/lib/udev/rules.d/60-ghelper-hotkeys.rules"
 install -Dm755 "$HERE/data/ghelper-rescan-pci" \
     "$LIBEXECDIR/rescan-pci"
+install -Dm755 "$HERE/data/ghelper-setup-fix" \
+    "$LIBEXECDIR/setup-fix"
 install -d "$SHAREDIR/polkit-1/actions"
 sed "s|@LIBEXECDIR@|$PREFIX/libexec/ghelper-linux|g" "$HERE/data/$APPID.policy" \
     > "$SHAREDIR/polkit-1/actions/$APPID.policy"

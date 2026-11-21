@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.4.3}
+Version:        %{?gh_version}%{!?gh_version:0.4.4}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -64,9 +64,18 @@ appstreamcli validate --no-net \
 %{_prefix}/lib/systemd/user/ghelper-automation.service
 %{_udevrulesdir}/60-ghelper-hotkeys.rules
 %{_libexecdir}/ghelper-linux/rescan-pci
+%{_libexecdir}/ghelper-linux/setup-fix
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.4-1
+- Add one-command setup.sh bootstrap installer for Zorin OS 18 / Ubuntu 24.04+,
+  Fedora and Arch, plus a headless Ubuntu 24.04 asusctl .deb build script and
+  CI job
+- Add an in-app Setup Check / first-run onboarding window and Settings actions
+  with NVIDIA, Wayland, BPF LSM and hotkey diagnostics, Copy diagnostics, and
+  allowlisted pkexec repairs via ghelper-setup-fix
+
 * Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.3-1
 - Require cardwire and asusctl at install time alongside python3 >= 3.10,
   gdk-pixbuf2, python3-gobject, python3-dbus, gtk4, and libadwaita, and

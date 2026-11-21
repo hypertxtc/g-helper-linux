@@ -395,6 +395,18 @@ class SettingsWindow(Adw.Window):
             self._version_value,
         ):
             section.add(row)
+        self._setup_button = flat_button("Setup Check\u2026", small=True)
+        self._setup_button.connect(
+            "clicked", lambda *_: self.window.open_setup_window()
+        )
+        self._copy_diag_button = flat_button("Copy diagnostics", small=True)
+        self._copy_diag_button.connect(
+            "clicked", lambda *_: self.window.copy_diagnostics(self._copy_diag_button)
+        )
+        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        actions.append(self._setup_button)
+        actions.append(self._copy_diag_button)
+        section.add(actions)
         body.append(section)
 
     def _profile_dropdown(self) -> Gtk.DropDown:
