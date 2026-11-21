@@ -286,5 +286,44 @@ class UiThreadGuardTests(unittest.TestCase):
         self.assertIn("battery_auto_switch(", self.source[start:end])
 
 
+class UltimateMuxTests(unittest.TestCase):
+    def test_ultimate_mux_blocks_integrated_and_smart_only(self) -> None:
+        self.assertTrue(gpu_policy.ultimate_mux_blocks("integrated", True))
+        self.assertTrue(gpu_policy.ultimate_mux_blocks("smart", True))
+        self.assertFalse(gpu_policy.ultimate_mux_blocks("hybrid", True))
+        self.assertFalse(gpu_policy.ultimate_mux_blocks("integrated", False))
+
+    def test_optimized_plan_reports_ultimate_mux(self) -> None:
+        plan = gpu_policy.optimized_plan(False, True, True, mux_ultimate=True)
+        self.assertEqual(plan.action, gpu_policy.OPTIMIZED_ULTIMATE_MUX)
+        self.assertIsNone(plan.target)
+
+    def test_automation_skips_in_ultimate_mux(self) -> None:
+        self.assertTrue(
+            gpu_policy.automation_should_skip(
+                gpu_auto=True,
+                cw_available=True,
+                cw_auto=False,
+                cw_current="hybrid",
+                firmware_disabled=False,
+                dgpu_present=True,
+                mux_ultimate=True,
+            )
+        )
+
+    def test_error_translation_for_ultimate_mux(self) -> None:
+        self.assertEqual(
+            gpu_policy.cardwire_error_message(
+                "mode integrated not available", False, True, mux_ultimate=True
+            ),
+            gpu_policy.ULTIMATE_MUX_HINT,
+        )
+        self.assertIsNone(
+            gpu_policy.cardwire_error_message(
+                "cardwire daemon is not running", False, True, mux_ultimate=True
+            )
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

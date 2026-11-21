@@ -1,3 +1,16 @@
+ghelper-linux (0.4.5-1) unstable; urgency=medium
+
+  * Fix GNOME Mutter "Can't set layout mode" refresh-rate switching error by
+    only sending layout-mode when supports-changing-layout-mode is true.
+  * Fix AMD iGPU vs NVIDIA dGPU classification in Ultimate MUX mode so NVML
+    reports the NVIDIA dGPU temperature and wattage.
+  * Add charge_full_design and current_now * voltage_now fallbacks for
+    charge-based batteries (health % and wattage/time remaining).
+  * Show a friendly Ultimate MUX hint on Eco/Optimized/Smart clicks, and keep
+    the GPU live header visible across periodic refreshes.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Fri, 20 Nov 2026 19:53:00 -0500
+
 ghelper-linux (0.4.4-1) unstable; urgency=medium
 
   * Add a one-command bootstrap installer (setup.sh) targeting Zorin OS 18

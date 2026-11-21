@@ -62,6 +62,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.4.5" date="2026-11-20">
+      <description>
+        <p>GNOME Mutter refresh-rate fix, NVIDIA Ultimate MUX telemetry and charge-battery support.</p>
+        <ul>
+          <li>Fixed GNOME Mutter "Can't set layout mode" error when switching refresh rates on systems where changing layout-mode is unsupported.</li>
+          <li>Fixed AMD iGPU + NVIDIA dGPU detection in Ultimate MUX mode so NVML reports the NVIDIA dGPU temperature and wattage instead of mislabeling the iGPU.</li>
+          <li>Added charge_full_design and current_now * voltage_now fallbacks for battery health and live wattage on charge-reporting batteries, plus friendly Ultimate MUX hints and steady GPU live readouts.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.4" date="2026-11-20">
       <description>
         <p>Guided prerequisite onboarding and one-command installer.</p>

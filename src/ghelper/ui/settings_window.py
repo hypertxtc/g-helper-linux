@@ -270,6 +270,16 @@ class SettingsWindow(Adw.Window):
         enabled = switch.get_active()
         target = gpu_policy.SMART_MODE if enabled else "hybrid"
 
+        def work() -> None:
+            if enabled:
+                try:
+                    mux = self.asusd.armoury(asusd_mod.ATTR_GPU_MUX)
+                    if mux and int(mux.get("CurrentValue", 1)) == 0:
+                        raise RuntimeError(gpu_policy.ULTIMATE_MUX_HINT)
+                except asusd_mod.AsusdError:
+                    pass
+            cw.set_mode(target)
+
         def done(_result) -> None:
             if enabled:
                 # Smart is an explicit choice; Optimized must not override it
@@ -279,7 +289,7 @@ class SettingsWindow(Adw.Window):
             self.window.main_view.refresh()
             self.refresh()
 
-        self.window.run(lambda: cw.set_mode(target), done=done, error=self._failed)
+        self.window.run(work, done=done, error=self._failed)
 
     def _build_battery(self, body: Gtk.Box) -> None:
         section = Section("gh-battery-symbolic", "Battery")

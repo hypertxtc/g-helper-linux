@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.4.4}
+Version:        %{?gh_version}%{!?gh_version:0.4.5}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -68,6 +68,16 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.5-1
+- Fix GNOME Mutter "Can't set layout mode" refresh-rate failure by only sending
+  layout-mode when supports-changing-layout-mode is enabled
+- Fix AMD iGPU + NVIDIA dGPU telemetry classification in Ultimate MUX mode so
+  NVML reports the NVIDIA dGPU temperature and wattage
+- Add charge_full_design and current_now * voltage_now fallbacks for
+  charge-based batteries (BAT1 health % and live wattage)
+- Show a friendly toast when clicking Eco/Optimized/Smart in Ultimate MUX mode,
+  and preserve the GPU live readout across periodic refreshes
+
 * Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.4-1
 - Add one-command setup.sh bootstrap installer for Zorin OS 18 / Ubuntu 24.04+,
   Fedora and Arch, plus a headless Ubuntu 24.04 asusctl .deb build script and

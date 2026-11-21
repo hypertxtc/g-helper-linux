@@ -330,12 +330,24 @@ class Monitor:
             "power_w": sample.get("power_w"),
         }
 
+    def _amd_is_igpu_only(self, nvidia_sample: Any) -> bool:
+        """True when a single amdgpu node sits alongside an NVIDIA dGPU.
+
+        In Ultimate MUX mode ``boot_vga`` flips to 1 on the NVIDIA dGPU and 0
+        on the AMD iGPU; checking for an NVIDIA PCI device avoids mislabeling
+        the AMD iGPU as ``dgpu`` and masking NVML telemetry.
+        """
+        return len(self._hwmon.get("amdgpu", [])) == 1 and (
+            isinstance(nvidia_sample, dict) or bool(nvidia_pci_devices())
+        )
+
     def gpu_temps(self, nvidia_sample: Any = _UNSET) -> dict[str, Any]:
         result: dict[str, Any] = {"igpu": None, "dgpu": None, "dgpu_junction": None, "pci": {}}
+        amd_igpu_only = self._amd_is_igpu_only(nvidia_sample)
         for path in self._hwmon.get("amdgpu", []):
             pci = _pci_address(path)
-            boot_vga = _int(f"/sys/bus/pci/devices/{pci}/boot_vga") if pci else None
-            is_igpu = boot_vga == 1
+            boot_vga = _int(os.path.join(PCI_DEVICES, pci, "boot_vga")) if pci else None
+            is_igpu = True if amd_igpu_only else (boot_vga == 1)
             edge = _int(os.path.join(path, "temp1_input"))
             junction = _int(os.path.join(path, "temp2_input"))
             if pci:
@@ -412,13 +424,14 @@ class Monitor:
     def gpu_power_w(self, nvidia_sample: Any = _UNSET) -> float | None:
         """Read the active GPU's package power from hwmon, if exposed."""
         fallback: int | None = None
+        amd_igpu_only = self._amd_is_igpu_only(nvidia_sample)
         for path in self._hwmon.get("amdgpu", []):
             pci = _pci_address(path)
-            boot_vga = _int(f"/sys/bus/pci/devices/{pci}/boot_vga") if pci else None
+            boot_vga = _int(os.path.join(PCI_DEVICES, pci, "boot_vga")) if pci else None
             value = _int(os.path.join(path, "power1_input"))
             if value is None:
                 continue
-            if boot_vga == 0:
+            if not amd_igpu_only and boot_vga == 0:
                 return value / 1_000_000
             if fallback is None:
                 fallback = value
@@ -431,22 +444,33 @@ class Monitor:
         if not self._battery:
             return None
         base = self._battery
+        voltage = _int(os.path.join(base, "voltage_now"))
         power_now = _int(os.path.join(base, "power_now"))
+        if power_now is None and voltage is not None:
+            current_now = _int(os.path.join(base, "current_now"))
+            if current_now is not None:
+                power_now = abs(current_now) * voltage // 1_000_000
         energy_now = _int(os.path.join(base, "energy_now"))
         energy_full = _int(os.path.join(base, "energy_full"))
         design = _int(os.path.join(base, "energy_full_design"))
-        if energy_now is None:
+        if energy_now is None and voltage is not None:
             charge_now = _int(os.path.join(base, "charge_now"))
-            voltage = _int(os.path.join(base, "voltage_now"))
-            if charge_now is not None and voltage is not None:
+            if charge_now is not None:
                 energy_now = charge_now * voltage // 1_000_000
-        if energy_full is None:
+        charge_full = None
+        if energy_full is None and voltage is not None:
             charge_full = _int(os.path.join(base, "charge_full"))
-            voltage = _int(os.path.join(base, "voltage_now"))
-            if charge_full is not None and voltage is not None:
+            if charge_full is not None:
                 energy_full = charge_full * voltage // 1_000_000
+        charge_design = _int(os.path.join(base, "charge_full_design"))
+        if design is None and charge_design is not None:
+            design_v = _int(os.path.join(base, "voltage_min_design")) or voltage
+            if design_v is not None:
+                design = charge_design * design_v // 1_000_000
         health = None
-        if energy_full and design:
+        if charge_full is not None and charge_design:
+            health = 100.0 * charge_full / charge_design
+        elif energy_full and design:
             health = 100.0 * energy_full / design
         return {
             "path": base,
@@ -458,7 +482,7 @@ class Monitor:
             "design_wh": design / 1_000_000 if design else None,
             "health": health,
             "cycles": _int(os.path.join(base, "cycle_count")),
-            "voltage_v": (_int(os.path.join(base, "voltage_now")) or 0) / 1_000_000 or None,
+            "voltage_v": (voltage or 0) / 1_000_000 or None,
             "limit": _int(os.path.join(base, "charge_control_end_threshold")),
         }
 

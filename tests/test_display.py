@@ -276,7 +276,7 @@ class MutterTests(unittest.TestCase):
         )
         self.assertEqual(serial, 7)
         self.assertEqual(method, display.MUTTER_METHOD_TEMPORARY)
-        self.assertEqual(props, {"layout-mode": 1})
+        self.assertEqual(props, {})
         self.assertEqual(
             logical,
             [
@@ -284,6 +284,30 @@ class MutterTests(unittest.TestCase):
                 (1280, 0, 1.5, 1, False, [("DP-1", "3840x2160@60.000", {})]),
             ],
         )
+
+    def test_build_mutter_apply_args_layout_mode_capability(self) -> None:
+        serial, monitors, logical_monitors, _props = self.SAMPLE_STATE
+        unsupported = (
+            serial,
+            monitors,
+            logical_monitors,
+            {"layout-mode": 1, "supports-changing-layout-mode": False},
+        )
+        _s, _m, _l, props = display.build_mutter_apply_args(
+            unsupported, "eDP-1", 2560, 1600, 60.0
+        )
+        self.assertEqual(props, {})
+
+        supported = (
+            serial,
+            monitors,
+            logical_monitors,
+            {"layout-mode": 2, "supports-changing-layout-mode": True},
+        )
+        _s, _m, _l, props = display.build_mutter_apply_args(
+            supported, "eDP-1", 2560, 1600, 60.0
+        )
+        self.assertEqual(props, {"layout-mode": 2})
 
     def test_build_mutter_apply_args_errors(self) -> None:
         with self.assertRaises(display.DisplayError):
@@ -309,6 +333,7 @@ class MutterTests(unittest.TestCase):
         args = proxy.ApplyMonitorsConfig.call_args.args
         self.assertEqual(int(args[0]), 7)
         self.assertEqual(int(args[1]), display.MUTTER_METHOD_TEMPORARY)
+        self.assertEqual(dict(args[3]), {})
 
 
 class HyprlandTests(unittest.TestCase):

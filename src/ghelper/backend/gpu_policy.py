@@ -22,6 +22,12 @@ from dataclasses import dataclass
 OPTIMIZED_SWITCHED = "switched"
 OPTIMIZED_FIRMWARE_ECO = "eco"
 OPTIMIZED_DGPU_ABSENT = "absent"
+OPTIMIZED_ULTIMATE_MUX = "ultimate"
+
+ULTIMATE_MUX_HINT = (
+    "Ultimate MUX mode is active (dGPU drives the display). "
+    "Pick Standard and reboot first to use Eco, Optimized, or Smart."
+)
 
 # Outcomes reported by the mode buttons' worker.
 MODE_OK = "ok"
@@ -73,10 +79,21 @@ def cardwire_can_switch(firmware_disabled: bool, dgpu_present: bool | None) -> b
     return not firmware_disabled and dgpu_present is not False
 
 
+def ultimate_mux_blocks(cw_mode: str, mux_ultimate: bool) -> bool:
+    """Whether booted Ultimate MUX mode prevents runtime GPU blocking."""
+    return mux_ultimate and cw_mode in ("integrated", SMART_MODE)
+
+
 def optimized_plan(
-    firmware_disabled: bool, dgpu_present: bool | None, ac: bool | None
+    firmware_disabled: bool,
+    dgpu_present: bool | None,
+    ac: bool | None,
+    *,
+    mux_ultimate: bool = False,
 ) -> OptimizedPlan:
     """Decide what Optimized can do in the current state."""
+    if mux_ultimate:
+        return OptimizedPlan(OPTIMIZED_ULTIMATE_MUX)
     if firmware_disabled:
         return OptimizedPlan(OPTIMIZED_FIRMWARE_ECO)
     if dgpu_present is False:
@@ -92,6 +109,7 @@ def automation_should_skip(
     cw_current: str | None,
     firmware_disabled: bool,
     dgpu_present: bool | None,
+    mux_ultimate: bool = False,
 ) -> bool:
     """Whether AC/battery automation must leave the GPU alone.
 
@@ -100,7 +118,7 @@ def automation_should_skip(
     between integrated and its configured mode on its own.  Smart and Manual
     are explicit choices, so automation must not touch them either.
     """
-    if not gpu_auto or not cw_available:
+    if not gpu_auto or not cw_available or mux_ultimate:
         return True
     if is_custom_mode(cw_current):
         return True
@@ -183,12 +201,20 @@ def mode_outcome(
 
 
 def cardwire_error_message(
-    error: str, firmware_disabled: bool, dgpu_present: bool | None
+    error: str,
+    firmware_disabled: bool,
+    dgpu_present: bool | None,
+    *,
+    mux_ultimate: bool = False,
 ) -> str | None:
-    """Translate cardwire's raw ENOENT into something a user can act on.
+    """Translate cardwire's raw errors into something a user can act on.
 
     Returns ``None`` when the error should be shown unchanged.
     """
+    if mux_ultimate:
+        lowered = error.lower()
+        if "not installed" not in lowered and "not running" not in lowered:
+            return ULTIMATE_MUX_HINT
     if "No such file" not in error:
         return None
     if firmware_disabled:

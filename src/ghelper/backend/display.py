@@ -346,7 +346,11 @@ def build_mutter_apply_args(
         raise DisplayError(f"Output {output_name} is not active")
 
     props_out: dict[str, int] = {}
-    if isinstance(global_props, dict) and "layout-mode" in global_props:
+    if (
+        isinstance(global_props, dict)
+        and global_props.get("supports-changing-layout-mode")
+        and "layout-mode" in global_props
+    ):
         props_out["layout-mode"] = int(global_props["layout-mode"])
 
     return int(serial), MUTTER_METHOD_TEMPORARY, logical_out, props_out

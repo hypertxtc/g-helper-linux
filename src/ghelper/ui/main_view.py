@@ -76,6 +76,7 @@ class MainView(Gtk.Box):
         self._cw_auto: bool | None = None
         self._gpu_quick: str | None = None
         self._pending_reboot = False
+        self._last_gpu_live = ""
         self._keyboard_built = False
 
         self.set_margin_top(10)
@@ -426,9 +427,7 @@ class MainView(Gtk.Box):
         )
         self._gpu_quick = gpu_policy.tray_mode(state.selected, data.get("cw_current"))
         self._pending_reboot = bool(data.get("pending"))
-        self.gpu_section.set_live(
-            "Reboot required" if self._pending_reboot else ""
-        )
+        self._sync_gpu_live()
         self.gpu_section.set_title(state.title)
         for mode, button in self._gpu_buttons.items():
             button.set_selected(mode == state.selected)
@@ -595,6 +594,14 @@ class MainView(Gtk.Box):
         self.battery_scale.set_value(int(limit))
 
     # -- live telemetry ---------------------------------------------------
+    def _sync_gpu_live(self) -> None:
+        if self._pending_reboot and self._last_gpu_live:
+            self.gpu_section.set_live(f"{self._last_gpu_live} \u00b7 Reboot required")
+        elif self._pending_reboot:
+            self.gpu_section.set_live("Reboot required")
+        else:
+            self.gpu_section.set_live(self._last_gpu_live)
+
     def update_live(self, snapshot: dict) -> None:
         cpu = snapshot.get("cpu_temp")
         fans = snapshot.get("fans") or {}
@@ -604,7 +611,8 @@ class MainView(Gtk.Box):
         cpu_text = f"CPU: {cpu:.0f}\u00b0C" if cpu is not None else "CPU: \u2014"
         gpu_text = f"GPU: {gpu:.0f}\u00b0C" if gpu is not None else "GPU: \u2014"
         self.perf_section.set_live(f"{cpu_text} -  Fan: {cpu_fan}")
-        self.gpu_section.set_live(f"{gpu_text} -  Fan: {gpu_fan}")
+        self._last_gpu_live = f"{gpu_text} -  Fan: {gpu_fan}"
+        self._sync_gpu_live()
         self.battery_section.set_live(battery_line(snapshot.get("battery")))
 
     @staticmethod
@@ -657,6 +665,25 @@ class MainView(Gtk.Box):
         except asusd_mod.AsusdError:
             return self._attrs.get(logical)
 
+    def _mux_ultimate(self) -> bool:
+        """True when the firmware GPU MUX is set to Ultimate (dGPU direct)."""
+        attr = self._attrs.get(asusd_mod.ATTR_GPU_MUX)
+        if not attr:
+            return False
+        try:
+            return int(attr.get("CurrentValue", 1)) == 0
+        except (TypeError, ValueError):
+            return False
+
+    def _fresh_mux_ultimate(self) -> bool:
+        attr = self._fresh_attr(asusd_mod.ATTR_GPU_MUX)
+        if not attr:
+            return self._mux_ultimate()
+        try:
+            return int(attr.get("CurrentValue", 1)) == 0
+        except (TypeError, ValueError):
+            return self._mux_ultimate()
+
     @staticmethod
     def _dgpu_present() -> bool | None:
         """Whether the dGPU is on the PCI bus; None when it cannot be read."""
@@ -674,6 +701,7 @@ class MainView(Gtk.Box):
             cw_current=self._cw_current,
             firmware_disabled=self._firmware_gpu_disabled(),
             dgpu_present=self._dgpu_present(),
+            mux_ultimate=self._mux_ultimate(),
         ):
             return
         target = gpu_policy.optimized_target(ac)
@@ -729,13 +757,18 @@ class MainView(Gtk.Box):
                     firmware_disabled=self._fresh_firmware_gpu_disabled(),
                     dgpu_present=self._dgpu_present(),
                     ac=self._last_ac if self._last_ac is not None else ac_online(),
+                    mux_ultimate=self._fresh_mux_ultimate(),
                 )
                 if plan.target is not None:
                     cw.set_mode(plan.target)
                 return plan
 
             def done(plan: gpu_policy.OptimizedPlan) -> None:
-                if plan.action == gpu_policy.OPTIMIZED_FIRMWARE_ECO:
+                if plan.action == gpu_policy.OPTIMIZED_ULTIMATE_MUX:
+                    self.set_gpu_auto(False)
+                    self.window.toast(gpu_policy.ULTIMATE_MUX_HINT)
+                    self.refresh()
+                elif plan.action == gpu_policy.OPTIMIZED_FIRMWARE_ECO:
                     self.window.toast(
                         "Optimized set; the dGPU stays off until ECO is undone"
                     )
@@ -763,6 +796,9 @@ class MainView(Gtk.Box):
         def work() -> str:
             error: Exception | None = None
             firmware_disabled = self._fresh_firmware_gpu_disabled()
+            mux_ultimate = self._fresh_mux_ultimate()
+            if gpu_policy.ultimate_mux_blocks(cw_mode, mux_ultimate):
+                raise RuntimeError(gpu_policy.ULTIMATE_MUX_HINT)
             present = self._dgpu_present()
             can_switch = gpu_policy.cardwire_can_switch(firmware_disabled, present)
             # An ECO-disabled GPU is not on the PCI bus; asking cardwire to
@@ -891,6 +927,7 @@ class MainView(Gtk.Box):
             str(exc),
             firmware_disabled=self._firmware_gpu_disabled(),
             dgpu_present=self._dgpu_present(),
+            mux_ultimate=self._mux_ultimate(),
         )
         if message is not None:
             exc = RuntimeError(message)

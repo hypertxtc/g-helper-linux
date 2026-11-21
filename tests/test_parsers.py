@@ -236,5 +236,78 @@ class ArmouryAttributeTests(unittest.TestCase):
         )
 
 
+class BatteryTests(unittest.TestCase):
+    def _read_battery(self, values: dict[str, str]) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            for name, content in values.items():
+                (base / name).write_text(f"{content}\n", encoding="utf-8")
+            monitor = object.__new__(system.Monitor)
+            monitor._battery = str(base)
+            return monitor.battery() or {}
+
+    def test_charge_based_battery_health_and_wattage(self) -> None:
+        bat = self._read_battery(
+            {
+                "capacity": "80",
+                "status": "Discharging",
+                "charge_now": "3600000",
+                "charge_full": "4500000",
+                "charge_full_design": "5000000",
+                "current_now": "-1500000",
+                "voltage_now": "16000000",
+                "voltage_min_design": "15400000",
+                "cycle_count": "12",
+                "charge_control_end_threshold": "80",
+            }
+        )
+        self.assertEqual(bat["capacity"], 80)
+        self.assertEqual(bat["status"], "Discharging")
+        self.assertAlmostEqual(bat["power_w"], 24.0)
+        self.assertAlmostEqual(bat["energy_wh"], 57.6)
+        self.assertAlmostEqual(bat["full_wh"], 72.0)
+        self.assertAlmostEqual(bat["design_wh"], 77.0)
+        # Uses direct uAh ratio (4.5M / 5.0M = 90%) regardless of voltage delta.
+        self.assertAlmostEqual(bat["health"], 90.0)
+        self.assertEqual(bat["cycles"], 12)
+        self.assertEqual(bat["limit"], 80)
+
+    def test_charge_based_battery_zero_current_and_voltage_fallback(self) -> None:
+        bat = self._read_battery(
+            {
+                "capacity": "100",
+                "status": "Full",
+                "charge_now": "5000000",
+                "charge_full": "5000000",
+                "charge_full_design": "5200000",
+                "current_now": "0",
+                "voltage_now": "16000000",
+            }
+        )
+        self.assertIsNone(bat["power_w"])
+        self.assertAlmostEqual(bat["design_wh"], 83.2)
+        self.assertAlmostEqual(bat["health"], 5000000 * 100.0 / 5200000)
+
+    def test_energy_based_battery_preserved(self) -> None:
+        bat = self._read_battery(
+            {
+                "capacity": "92",
+                "status": "Discharging",
+                "power_now": "13590000",
+                "energy_now": "52881000",
+                "energy_full": "57486000",
+                "energy_full_design": "76000000",
+                "voltage_now": "15933000",
+                "cycle_count": "0",
+                "charge_control_end_threshold": "100",
+            }
+        )
+        self.assertAlmostEqual(bat["power_w"], 13.59)
+        self.assertAlmostEqual(bat["energy_wh"], 52.881)
+        self.assertAlmostEqual(bat["full_wh"], 57.486)
+        self.assertAlmostEqual(bat["design_wh"], 76.0)
+        self.assertAlmostEqual(bat["health"], 100.0 * 57486000 / 76000000)
+
+
 if __name__ == "__main__":
     unittest.main()

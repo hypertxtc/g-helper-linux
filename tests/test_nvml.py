@@ -186,6 +186,84 @@ class NvmlReaderTests(unittest.TestCase):
         self.assertEqual(snap["gpu"]["dgpu"], 61.0)
         self.assertEqual(snap["gpu_power"], 35.0)
 
+    def test_ultimate_mux_amd_igpu_plus_nvidia_dgpu(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "pci"
+            root.mkdir()
+            _make_pci_dev(
+                root, "0000:01:00.0", vendor="0x10de", driver="nvidia",
+                runtime_status="active", boot_vga="1",
+            )
+            amd_dev = _make_pci_dev(
+                root, "0000:65:00.0", pci_class="0x030000", vendor="0x1002",
+                driver="amdgpu", runtime_status=None, boot_vga="0",
+            )
+            hwmon = Path(tmp) / "hwmon0"
+            hwmon.mkdir()
+            (hwmon / "temp1_input").write_text("41000\n", encoding="utf-8")
+            (hwmon / "power1_input").write_text("6473000\n", encoding="utf-8")
+            os.symlink(amd_dev, hwmon / "device")
+
+            monitor = object.__new__(system.Monitor)
+            monitor._hwmon = {"amdgpu": [str(hwmon)]}
+            monitor._last_cpu_times = None
+            monitor._battery = None
+            with (
+                mock.patch.object(system, "PCI_DEVICES", str(root)),
+                mock.patch.object(
+                    system.nvml,
+                    "read_gpu",
+                    return_value={"temp": 55.0, "power_w": 28.5},
+                ) as read_gpu,
+                mock.patch.object(system, "_ac_online", return_value=True),
+                mock.patch.object(monitor, "cpu_load", return_value=5.0),
+                mock.patch.object(monitor, "cpu_mhz", return_value=2100.0),
+            ):
+                snap = monitor.snapshot()
+        read_gpu.assert_called_once_with("0000:01:00.0")
+        self.assertEqual(snap["gpu"]["igpu"], 41.0)
+        self.assertEqual(snap["gpu"]["dgpu"], 55.0)
+        self.assertTrue(snap["gpu"]["pci"]["0000:65:00.0"]["igpu"])
+        self.assertFalse(snap["gpu"]["pci"]["0000:01:00.0"]["igpu"])
+        self.assertEqual(snap["gpu_power"], 28.5)
+
+    def test_suspended_nvidia_with_amd_igpu_falls_back_to_igpu_power_without_waking(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "pci"
+            root.mkdir()
+            _make_pci_dev(
+                root, "0000:01:00.0", vendor="0x10de", driver="nvidia",
+                runtime_status="suspended", boot_vga="0",
+            )
+            amd_dev = _make_pci_dev(
+                root, "0000:65:00.0", pci_class="0x030000", vendor="0x1002",
+                driver="amdgpu", runtime_status=None, boot_vga="1",
+            )
+            hwmon = Path(tmp) / "hwmon0"
+            hwmon.mkdir()
+            (hwmon / "temp1_input").write_text("42000\n", encoding="utf-8")
+            (hwmon / "power1_input").write_text("5500000\n", encoding="utf-8")
+            os.symlink(amd_dev, hwmon / "device")
+
+            monitor = object.__new__(system.Monitor)
+            monitor._hwmon = {"amdgpu": [str(hwmon)]}
+            monitor._last_cpu_times = None
+            monitor._battery = None
+            with (
+                mock.patch.object(system, "PCI_DEVICES", str(root)),
+                mock.patch.object(system.nvml, "read_gpu") as read_gpu,
+                mock.patch.object(system, "_ac_online", return_value=False),
+                mock.patch.object(monitor, "cpu_load", return_value=5.0),
+                mock.patch.object(monitor, "cpu_mhz", return_value=1400.0),
+            ):
+                snap = monitor.snapshot()
+        read_gpu.assert_not_called()
+        self.assertEqual(snap["gpu"]["igpu"], 42.0)
+        self.assertIsNone(snap["gpu"]["dgpu"])
+        self.assertAlmostEqual(snap["gpu_power"], 5.5)
+
 
 if __name__ == "__main__":
     unittest.main()
