@@ -122,6 +122,22 @@ class InstalledFilesTests(unittest.TestCase):
         self.assertTrue(text.startswith(".TH GHELPER-LINUX 1"))
 
 
+def _deb_field(control: str, field: str) -> set[str]:
+    binary = control.split("\nPackage:", 1)[1]
+    match = re.search(rf"^{field}:([^\n]*(?:\n[ \t]+[^\n]*)*)", binary, re.MULTILINE)
+    assert match is not None, f"binary stanza missing {field}"
+    items: set[str] = set()
+    for part in match.group(1).split(","):
+        token = part.strip().split()[0] if part.strip() else ""
+        if token and not token.startswith("${"):
+            items.add(token)
+    return items
+
+
+def _spec_deps(spec: str, tag: str) -> set[str]:
+    return {match.group(1) for match in re.finditer(rf"^{tag}:\s*(\S+)", spec, re.MULTILINE)}
+
+
 class DebianPackagingTests(unittest.TestCase):
     def test_debian_package_installs_through_the_makefile(self) -> None:
         rules = (ROOT / "debian/rules").read_text(encoding="utf-8")
@@ -131,14 +147,38 @@ class DebianPackagingTests(unittest.TestCase):
 
     def test_debian_runtime_dependencies_are_declared(self) -> None:
         control = (ROOT / "debian/control").read_text(encoding="utf-8")
+        depends = _deb_field(control, "Depends")
         for dependency in (
+            "python3",
             "python3-gi",
+            "python3-gi-cairo",
             "python3-dbus",
             "gir1.2-gtk-4.0",
             "gir1.2-adw-1",
+            "gir1.2-gdkpixbuf-2.0",
+            "asusctl",
+            "cardwire",
         ):
             with self.subTest(dependency=dependency):
-                self.assertIn(dependency, control)
+                self.assertIn(dependency, depends)
+        self.assertIn("pkexec", _deb_field(control, "Recommends"))
+
+    def test_rpm_runtime_dependencies_are_declared(self) -> None:
+        spec = (ROOT / "packaging/ghelper-linux.spec").read_text(encoding="utf-8")
+        requires = _spec_deps(spec, "Requires")
+        for dependency in (
+            "python3",
+            "python3-gobject",
+            "python3-dbus",
+            "gtk4",
+            "libadwaita",
+            "gdk-pixbuf2",
+            "asusctl",
+            "cardwire",
+        ):
+            with self.subTest(dependency=dependency):
+                self.assertIn(dependency, requires)
+        self.assertIn("polkit", _spec_deps(spec, "Recommends"))
 
 
 class PolicyTests(unittest.TestCase):

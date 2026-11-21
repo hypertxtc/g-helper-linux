@@ -1,3 +1,11 @@
+ghelper-linux (0.4.3-1) unstable; urgency=medium
+
+  * Require cardwire and asusctl in DEB Depends and RPM Requires alongside
+    python3 (>= 3.10), python3-gi-cairo, gir1.2-gdkpixbuf-2.0 / gdk-pixbuf2,
+    GTK 4 and libadwaita, with polkit/pkexec recommended for Rescan dGPU.
+
+ -- Atlas <atlas@hypertextcoffee.com>  Fri, 20 Nov 2026 19:03:00 -0500
+
 ghelper-linux (0.4.2-1) unstable; urgency=medium
 
   * Fix Fans and Power reading the last profile's EPP instead of the

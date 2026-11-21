@@ -49,7 +49,8 @@ System Control Interface on Windows.
   (the default policy allows the `wheel` group).
 - Python 3.10+, PyGObject, GTK 4 and libadwaita.
 - [cardwire](https://github.com/OpenGamingCollective/cardwire) + `cardwired`
-  for GPU modes (optional but recommended).
+  for GPU modes (required by the RPM and DEB packages; running from source
+  still degrades cleanly without it).
 - KDE Plasma (`kscreen-doctor`) for window placement and refresh-rate switching;
   GNOME (`org.gnome.Mutter.DisplayConfig`), Hyprland (`hyprctl`) and wlroots
   compositors (`wlr-randr`) are also supported for refresh-rate switching.
@@ -75,8 +76,8 @@ from another desktop says whether it is a missing tool or a desktop mismatch.
 ### Fedora
 
 ```bash
-sudo dnf install python3-gobject python3-dbus gtk4 libadwaita asusctl
-sudo dnf install cardwire        # if your repos carry it, otherwise see cardwire docs
+# asusctl and cardwire are provided by third-party repos such as Terra or COPR.
+sudo dnf install python3-gobject python3-dbus gtk4 libadwaita gdk-pixbuf2 asusctl cardwire
 ```
 
 ### Arch

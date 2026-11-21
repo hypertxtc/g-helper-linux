@@ -97,7 +97,8 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             build-essential debhelper fakeroot dpkg-dev git lintian \
-            python3 python3-gi python3-dbus gir1.2-gtk-4.0 gir1.2-adw-1 \
+            python3 python3-gi python3-gi-cairo python3-dbus \
+            gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gdkpixbuf-2.0 \
             desktop-file-utils appstream
 
       - uses: actions/checkout@v7
@@ -119,7 +120,10 @@ jobs:
 
       - name: Install and run the package
         run: |
-          dpkg -i dist/*.deb
+          # asusctl and cardwire are required at install time on target systems
+          # (via third-party repos), so ignore only those two in the stock Debian
+          # container while still enforcing every Debian runtime dependency.
+          dpkg --ignore-depends=asusctl,cardwire -i dist/*.deb
           ghelper-linux --version
 
       - name: Upload DEB

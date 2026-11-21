@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 Name:           ghelper-linux
-Version:        %{?gh_version}%{!?gh_version:0.4.2}
+Version:        %{?gh_version}%{!?gh_version:0.4.3}
 Release:        1%{?dist}
 Summary:        G-Helper style control centre for ASUS laptops on Linux
 
@@ -9,12 +9,15 @@ License:        GPL-3.0-or-later
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 
+Requires:       python3 >= 3.10
 Requires:       python3-gobject
 Requires:       python3-dbus
 Requires:       gtk4
 Requires:       libadwaita
+Requires:       gdk-pixbuf2
 Requires:       asusctl
-Recommends:     cardwire
+Requires:       cardwire
+Recommends:     polkit
 
 BuildRequires:  python3
 BuildRequires:  python3-gobject
@@ -64,6 +67,11 @@ appstreamcli validate --no-net \
 %{_datadir}/polkit-1/actions/io.github.ghelperlinux.GHelper.policy
 
 %changelog
+* Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.3-1
+- Require cardwire and asusctl at install time alongside python3 >= 3.10,
+  gdk-pixbuf2, python3-gobject, python3-dbus, gtk4, and libadwaita, and
+  recommend polkit for Rescan dGPU
+
 * Fri Nov 20 2026 Atlas <atlas@hypertextcoffee.com> - 0.4.2-1
 - Fix Fans and Power reading the last profile's EPP instead of the active
   profile's EPP, and block programmatic VerticalSlider range clamping from

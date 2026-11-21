@@ -62,6 +62,15 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.4.3" date="2026-11-20">
+      <description>
+        <p>Complete package prerequisite declarations.</p>
+        <ul>
+          <li>RPM and DEB packages now require cardwire and asusctl at install time alongside Python 3.10+ and the GTK 4, libadwaita, Cairo and GdkPixbuf runtime libraries.</li>
+          <li>Declared polkit/pkexec as recommended for Rescan dGPU and tightened CI and release packaging checks.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.2" date="2026-11-20">
       <description>
         <p>Fans and Power fixes, live chart telemetry, MID fan and fPPT support.</p>
